@@ -3,9 +3,6 @@ from langchain.agents.middleware import TodoListMiddleware
 
 from .prompts import VISION_AGENT_SYSTEM_PROMPT
 from .tools import (
-    # General vision tools
-    capture_image,
-    analyze_image,
     describe_surroundings,
     # Vision Understanding - People Detection
     detect_people,
@@ -15,6 +12,7 @@ from .tools import (
     # People Finding
     find_person,
     # Object and Scene Finding
+    detect_object,
     find_object,
     find_scene,
 )
@@ -22,9 +20,6 @@ from .tools import (
 
 # All vision tools grouped by category
 VISION_TOOLS = [
-    # General vision
-    capture_image,
-    analyze_image,
     describe_surroundings,
     # Vision Understanding - People Detection
     detect_people,
@@ -34,6 +29,7 @@ VISION_TOOLS = [
     # People Finding
     find_person,
     # Object and Scene Finding
+    detect_object,
     find_object,
     find_scene,
 ]

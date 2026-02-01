@@ -35,8 +35,9 @@ You can move around the environment and use your robotic arm:
 ## Vision (via Vision Agent)
 You can see and understand your environment:
 - Look at and analyze what's in front of you
-- Identify people, objects, and text
+- Detect people, objects, and text in view
 - Describe scenes and surroundings
+- Find people, objects, and scenes in the database
 
 # Guidelines
 

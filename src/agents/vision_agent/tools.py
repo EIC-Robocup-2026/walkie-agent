@@ -1,36 +1,6 @@
 from langchain_core.tools import tool
 
 
-@tool
-def capture_image() -> str:
-    """Capture an image from the robot's camera.
-    
-    Returns:
-        str: Confirmation that an image was captured and a description of the capture
-    """
-    print("Capturing image from robot camera...")
-    # TODO: Implement actual camera capture from Walkie SDK
-    # For now, return a placeholder
-    return "Image captured successfully from front camera."
-
-
-@tool
-def analyze_image(query: str) -> str:
-    """Analyze the current camera view to answer a specific question or find specific information.
-    
-    Args:
-        query: What to look for or analyze in the image (e.g., "find people", 
-               "read the sign", "describe the scene")
-    
-    Returns:
-        str: The analysis results based on the query
-    """
-    print(f"Analyzing image for: {query}")
-    # TODO: Implement actual vision analysis using Walkie SDK or vision model
-    # For now, return a placeholder
-    return f"Vision analysis for '{query}': [Placeholder - implement with actual vision capabilities]"
-
-
 @tool  
 def describe_surroundings() -> str:
     """Get a general description of what the robot currently sees.
@@ -137,6 +107,17 @@ def find_person(name: str) -> str:
 # =============================================================================
 # Object and Scene Finding Tools (Database Search)
 # =============================================================================
+
+@tool(parse_docstring=True)
+def detect_object(object_name: str) -> str:
+    """Detect a specific object in the current view.
+    
+    Args:
+        object_name: The name of the object to detect (e.g., "coffee mug", "fire extinguisher")
+    """
+    print(f"Detecting object: {object_name}")
+    return f"Detecting '{object_name}': No matching object found in current view. [Placeholder]"
+
 
 @tool(parse_docstring=True)
 def find_object(object_name: str) -> str:
