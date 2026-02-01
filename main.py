@@ -1,8 +1,6 @@
 from langchain_openai import ChatOpenAI
 import os
-import wave
 from dotenv import load_dotenv
-import asyncio
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
@@ -32,7 +30,7 @@ walkie_audio = WalkieAudio(
     }
 )
 
-async def main():
+def main():
     
     while True:
         print("Recording...")
@@ -49,4 +47,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
