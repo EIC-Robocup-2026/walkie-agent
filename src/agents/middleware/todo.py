@@ -231,31 +231,77 @@ class TodoListMiddleware(AgentMiddleware):
         """
         return self.before_agent(state, runtime)
 
+    @staticmethod
+    def _format_todos(todos: list[Todo]) -> str:
+        """Format a list of todos into a readable string for the system prompt.
+
+        Args:
+            todos: The list of todo items to format.
+
+        Returns:
+            A formatted string representation of the todos, or an empty string
+            if the list is empty.
+        """
+        if not todos:
+            return ""
+
+        status_icons = {
+            "pending": "⬜",
+            "in_progress": "🔄",
+            "completed": "✅",
+        }
+        lines = ["## Current Todo List"]
+        for i, todo in enumerate(todos, 1):
+            icon = status_icons.get(todo.get("status", "pending"), "⬜")
+            lines.append(f"{i}. {icon} [{todo.get('status', 'pending')}] {todo.get('content', '')}")
+
+        return "\n".join(lines)
+
+    def _build_system_message(self, request: ModelRequest) -> SystemMessage:
+        """Build the system message with the todo prompt and current todos injected.
+
+        Args:
+            request: The model request containing the current state and system message.
+
+        Returns:
+            A new ``SystemMessage`` with the todo system prompt and current todos
+            appended.
+        """
+        todos: list[Todo] = request.state.get("todos", [])
+        todos_text = self._format_todos(todos)
+
+        extra_text = f"\n\n{self.system_prompt}"
+        if todos_text:
+            extra_text += f"\n\n{todos_text}"
+
+        if request.system_message is not None:
+            new_system_content = [
+                *request.system_message.content_blocks,
+                {"type": "text", "text": extra_text},
+            ]
+        else:
+            new_system_content = [{"type": "text", "text": extra_text.lstrip()}]
+
+        return SystemMessage(
+            content=cast("list[str | dict[str, str]]", new_system_content)
+        )
+
     def wrap_model_call(
         self,
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelResponse],
     ) -> ModelCallResult:
-        """Update the system message to include the todo system prompt.
+        """Update the system message to include the todo system prompt and current todos.
 
         Args:
             request: Model request to execute (includes state and runtime).
-            handler: Async callback that executes the model request and returns
+            handler: Callback that executes the model request and returns
                 `ModelResponse`.
 
         Returns:
             The model call result.
         """
-        if request.system_message is not None:
-            new_system_content = [
-                *request.system_message.content_blocks,
-                {"type": "text", "text": f"\n\n{self.system_prompt}"},
-            ]
-        else:
-            new_system_content = [{"type": "text", "text": self.system_prompt}]
-        new_system_message = SystemMessage(
-            content=cast("list[str | dict[str, str]]", new_system_content)
-        )
+        new_system_message = self._build_system_message(request)
         return handler(request.override(system_message=new_system_message))
 
     async def awrap_model_call(
@@ -263,7 +309,7 @@ class TodoListMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], Awaitable[ModelResponse]],
     ) -> ModelCallResult:
-        """Update the system message to include the todo system prompt.
+        """Update the system message to include the todo system prompt and current todos.
 
         Args:
             request: Model request to execute (includes state and runtime).
@@ -273,16 +319,7 @@ class TodoListMiddleware(AgentMiddleware):
         Returns:
             The model call result.
         """
-        if request.system_message is not None:
-            new_system_content = [
-                *request.system_message.content_blocks,
-                {"type": "text", "text": f"\n\n{self.system_prompt}"},
-            ]
-        else:
-            new_system_content = [{"type": "text", "text": self.system_prompt}]
-        new_system_message = SystemMessage(
-            content=cast("list[str | dict[str, str]]", new_system_content)
-        )
+        new_system_message = self._build_system_message(request)
         return await handler(request.override(system_message=new_system_message))
 
     @override
