@@ -6,7 +6,7 @@ from src.audio.walkie import WalkieAudio
 
 from .prompts import WALKIE_AGENT_SYSTEM_PROMPT
 from .tools import walkie_tools, initialize_sub_agents, create_speak_tool
-from ..common import DisableParallelToolCallsMiddleware, InjectTodosIntoPromptMiddleware
+from ..middleware import SequentialToolCallMiddleware, TodoListMiddleware
 
 checkpointer = InMemorySaver()
 
@@ -30,9 +30,19 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio = None, tools=[]):
         model=model,
         tools=tools,
         middleware=[
-            DisableParallelToolCallsMiddleware(),
-            TodoListMiddleware(),
-            InjectTodosIntoPromptMiddleware(),  # Shows todos in the system prompt
+            SequentialToolCallMiddleware(),
+            TodoListMiddleware(
+                initial_todos=[
+                    {
+                        "content": "Check the current position of the robot",
+                        "status": "pending",
+                    },
+                    {
+                        "content": "Move forward 1 meter",
+                        "status": "pending",
+                    },
+                ],
+            ),
         ],
         system_prompt=WALKIE_AGENT_SYSTEM_PROMPT,
         checkpointer=checkpointer,

@@ -1,5 +1,5 @@
 from langchain.agents import create_agent
-from langchain.agents.middleware import TodoListMiddleware
+from ..middleware import SequentialToolCallMiddleware, TodoListMiddleware
 
 from .prompts import VISION_AGENT_SYSTEM_PROMPT
 from .tools import (
@@ -48,6 +48,7 @@ def create_vision_agent(model):
         model=model,
         tools=VISION_TOOLS,
         middleware=[
+            SequentialToolCallMiddleware(),
             TodoListMiddleware(),
         ],
         system_prompt=VISION_AGENT_SYSTEM_PROMPT,

@@ -14,7 +14,6 @@ robot = WalkieRobot(ip=robot_ip, enable_camera=False)
 
 def _get_current_pose():
     """Get the current pose of the robot"""
-    print("Getting current pose of the robot")
     pose = robot.status.get_pose()
     if pose is None:
         raise ValueError("Unable to get robot pose at the moment")
