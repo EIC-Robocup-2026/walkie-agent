@@ -2,12 +2,16 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import TodoListMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
 
+from src.audio.walkie import WalkieAudio
+from src.vision.camera import WalkieCamera
+
 from .prompts import WALKIE_AGENT_SYSTEM_PROMPT
-from .tools import walkie_tools, initialize_sub_agents
+from .tools import walkie_tools, initialize_sub_agents, create_speak_tool
+from ..common import DisableParallelToolCallsMiddleware, InjectTodosIntoPromptMiddleware
 
 checkpointer = InMemorySaver()
 
-def create_walkie_agent(model):
+def create_walkie_agent(model, walkieAudio: WalkieAudio = None, walkieCamera: WalkieCamera = None, tools=[]):
     """Create the main Walkie agent with sub-agent tools.
     
     Args:
@@ -19,11 +23,17 @@ def create_walkie_agent(model):
     # Initialize sub-agents with the same model
     initialize_sub_agents(model)
     
+    tools = walkie_tools + tools
+    if walkieAudio:
+        tools.append(create_speak_tool(walkieAudio))
+    
     agent = create_agent(
         model=model,
-        tools=walkie_tools,
+        tools=tools,
         middleware=[
+            DisableParallelToolCallsMiddleware(),
             TodoListMiddleware(),
+            InjectTodosIntoPromptMiddleware(),  # Shows todos in the system prompt
         ],
         system_prompt=WALKIE_AGENT_SYSTEM_PROMPT,
         checkpointer=checkpointer,

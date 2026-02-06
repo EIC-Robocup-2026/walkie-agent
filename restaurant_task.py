@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
-from src.vision import WalkieCamera
 
 load_dotenv()
 
@@ -35,14 +34,44 @@ walkie_audio = WalkieAudio(
     }
 )
 
-# Initialize camera
-walkie_camera = WalkieCamera(device=2)
-walkie_camera.open()
+todo_list = [
+    {
+        "content": "Check the current position of the robot",
+        "status": "pending",
+    },
+    {
+        "content": "Move forward 1 meter",
+        "status": "pending",
+    },
+    {
+        "content": "Move to position x=1, y=1",
+        "status": "pending",
+    },
+    {
+        "content": "Move to starting position",
+        "status": "pending",
+    },
+]
 
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(model, walkie_audio)
 
+config = {
+    "configurable": {
+        "thread_id": "1",
+        "initial_todos": todo_list,
+    },
+}
+
 def main():
+    # First, update the state to inject the todos (since OmitFromInput filters them from invoke)
+    agent.update_state(config, {"todos": todo_list})
+    
+    result = agent.invoke({
+        "messages": [{"role": "user", "content": "Please do according to the todo list"}],
+    }, config)
+    
+    print(result)
     
     while True:
         print("Recording...")
@@ -51,7 +80,7 @@ def main():
             continue
         print(f"Transcription: {text}")
         
-        result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
+        result = agent.invoke({"messages": [{"role": "user", "content": text}]}, config)
         content = result["messages"][-1].content
         
         print(content)

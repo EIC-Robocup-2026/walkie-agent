@@ -29,10 +29,14 @@ You can command the robot's arm to perform various actions such as picking up ob
 
 ## Tool Usage
 
-- Use `move_to_coords(x, y, heading)` to navigate to a specific location
-- Use `move_to_heading(heading)` to rotate in place to face a direction
+- Use `move_absolute(x, y, heading)` to navigate to a specific location
+- Use `move_relative(x, y, heading)` to navigate relative to the current position
 - Use `get_current_pose()` to get the robot's current position and orientation
 - Use `command_arm(action)` to control the robotic arm
+
+For relative movements:
++x is the forward direction of the robot
++y is the left direction of the robot
 
 When given a task, analyze what physical movements are required and execute them using the appropriate tools. If a task requires multiple movements, execute them in a logical sequence.
 """
