@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
-from src.vision import WalkieCamera
 
 load_dotenv()
 
@@ -36,8 +35,6 @@ walkie_audio = WalkieAudio(
 )
 
 # Initialize camera
-walkie_camera = WalkieCamera(device=2)
-walkie_camera.open()
 
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(model, walkie_audio)

@@ -1,7 +1,6 @@
 from langchain_core.tools import tool
 
 from src.audio.walkie import WalkieAudio
-from vision.camera import WalkieCamera
 from ..actuators_agent import create_actuator_agent
 from ..vision_agent import create_vision_agent
 
@@ -11,11 +10,11 @@ _actuator_agent = None
 _vision_agent = None
 
 
-def initialize_sub_agents(model, walkieCamera: WalkieCamera = None):
+def initialize_sub_agents(model):
     """Initialize sub-agents with the provided model. Call this before using the tools."""
     global _actuator_agent, _vision_agent
     _actuator_agent = create_actuator_agent(model)
-    _vision_agent = create_vision_agent(model, walkieCamera)
+    _vision_agent = create_vision_agent(model)
 
 
 @tool(parse_docstring=True)
