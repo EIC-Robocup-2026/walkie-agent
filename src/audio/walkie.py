@@ -107,6 +107,7 @@ class WalkieAudio:
         timeout: float = 30.0,
         min_duration: float = 2.0,
         wait_for_speech: bool = True,
+        prompt: str | None = None
     ) -> str:
         """Record audio until silence and transcribe to text.
         
@@ -123,7 +124,10 @@ class WalkieAudio:
             min_duration=min_duration,
             wait_for_speech=wait_for_speech,
         )
-        return self._stt.transcribe(audio)
+        if prompt:
+            return self._stt.transcribe(audio, prompt=prompt)
+        else:
+            return self._stt.transcribe(audio)
 
     def listen_seconds(self, duration: float = 5.0) -> str:
         """Record audio for a fixed duration and transcribe.
