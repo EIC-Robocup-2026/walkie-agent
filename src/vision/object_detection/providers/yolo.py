@@ -115,6 +115,12 @@ class YOLOObjectDetectionProvider(ObjectDetectionProvider):
 
         # boxes.xyxy is (N, 4) in pixel coords (x1, y1, x2, y2)
         xyxy = r.boxes.xyxy.cpu().numpy()
+        cls_ids = r.boxes.cls.cpu().numpy()
+        confs = r.boxes.conf.cpu().numpy()
+        names = getattr(self._model, "names", {}) or {}
+        if isinstance(names, list):
+            names = {i: names[i] for i in range(len(names))}
+
         # Sort by area descending to prioritize larger objects
         areas = (xyxy[:, 2] - xyxy[:, 0]) * (xyxy[:, 3] - xyxy[:, 1])
         order = np.argsort(-areas)
@@ -138,12 +144,18 @@ class YOLOObjectDetectionProvider(ObjectDetectionProvider):
             crop_rgb = img_rgb[y1p:y2p, x1p:x2p]
             crop_pil = Image.fromarray(crop_rgb)
             bbox = (x1p, y1p, x2p, y2p)
+            class_id = int(cls_ids[idx])
+            class_name = names.get(class_id, "unknown")
+            confidence = float(confs[idx])
             detections.append(
                 DetectedObject(
                     mask=None,
                     bbox=bbox,
                     area_ratio=area_ratio,
                     cropped_image=crop_pil,
+                    class_id=class_id,
+                    class_name=class_name,
+                    confidence=confidence,
                 )
             )
         return detections

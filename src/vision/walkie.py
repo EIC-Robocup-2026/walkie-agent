@@ -144,13 +144,20 @@ class WalkieVision:
         results: list[dict[str, Any]] = []
         for i, obj in enumerate(detected):
             emb = self._embedding.embed_image(obj.cropped_image)
-            results.append({
+            item: dict[str, Any] = {
                 "object_index": i,
                 "bbox": obj.bbox,
                 "area_ratio": obj.area_ratio,
                 "cropped_image": obj.cropped_image,
                 "embedding": emb,
-            })
+            }
+            if obj.class_id is not None:
+                item["class_id"] = obj.class_id
+            if obj.class_name is not None:
+                item["class_name"] = obj.class_name
+            if obj.confidence is not None:
+                item["confidence"] = obj.confidence
+            results.append(item)
         return results
 
     def embed_image(self, image: Image.Image) -> list[float]:

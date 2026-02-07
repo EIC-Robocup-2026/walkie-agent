@@ -14,6 +14,10 @@ class DetectedObject:
     bbox: tuple[int, int, int, int]  # (x1, y1, x2, y2)
     area_ratio: float  # fraction of image area
     cropped_image: Image.Image  # cropped region with padding
+    # Optional: set by providers that output class and confidence (e.g. YOLO)
+    class_id: int | None = None
+    class_name: str | None = None
+    confidence: float | None = None
 
 
 class ObjectDetectionProvider(ABC):
