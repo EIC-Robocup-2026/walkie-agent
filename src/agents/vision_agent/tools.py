@@ -118,8 +118,8 @@ def get_vision_tools(
         for h in hits:
             xyz = h.get("object_xyz", [0, 0, 0])
             sid = h.get("scene_id", "")
-            dist = h.get("distance", 0)
-            lines.append(f"  - position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), scene_id={sid}, distance={dist:.3f}")
+            conf = h.get("similarity", 0)
+            lines.append(f"  - position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), scene_id={sid}, confidence={conf:.2f}")
         print(f"Found {len(hits)} location(s) for '{object_name}': {lines}")
         return "\n".join(lines)
 
@@ -145,8 +145,8 @@ def get_vision_tools(
         for h in hits:
             sid = h.get("scene_id", "")
             xyz = h.get("scene_xyz", [0, 0, 0])
-            dist = h.get("distance", 0)
-            lines.append(f"  - scene_id={sid}, position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), distance={dist:.3f}")
+            conf = h.get("similarity", 0)
+            lines.append(f"  - scene_id={sid}, position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), confidence={conf:.2f}")
         print(f"Found {len(hits)} scene(s) matching '{scene_description}': {lines}")
         return "\n".join(lines)
 
@@ -199,6 +199,8 @@ def get_vision_tools(
                     object_embedding=o["embedding"],
                     heading=heading,
                     scene_id=scene_id,
+                    class_id=o.get("class_id"),
+                    class_name=o.get("class_name"),
                 )
             )
             stored += 1

@@ -42,7 +42,7 @@ walkie_vision = WalkieVision(
     camera_device=0,
     caption_provider="google",
     embedding_provider="clip",
-    detection_provider="sam",
+    detection_provider="yolo",
 )
 walkie_db = WalkieVectorDB(persist_directory="chroma_db")
 
