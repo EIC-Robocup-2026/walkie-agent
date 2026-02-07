@@ -1,181 +1,317 @@
+"""Vision agent tools backed by WalkieVision and WalkieVectorDB."""
+
+from __future__ import annotations
+
+import uuid
+
 from langchain_core.tools import tool
 
-from src.vision.camera import WalkieCamera
+from src.db.walkie_db import ObjectRecord, SceneRecord, WalkieVectorDB
+from src.vision import WalkieVision
 
-def get_vision_tools(walkieCamera: WalkieCamera):
-    """Get the vision tools for the Vision Agent.
-    
+
+def get_vision_tools(
+    vision: WalkieVision,
+    db: WalkieVectorDB | None = None,
+) -> list:
+    """Build vision tools that use WalkieVision and optionally WalkieVectorDB.
+
     Args:
-        walkieCamera: The Walkie camera to use for the vision tools
-    
+        vision: WalkieVision instance (camera must be open when tools run).
+        db: Optional WalkieVectorDB for find_object, find_scene, scan_and_remember.
+
     Returns:
-        list: A list of vision tools
+        List of LangChain tools.
     """
 
-    @tool  
+    # -------------------------------------------------------------------------
+    # Scene description and classification
+    # -------------------------------------------------------------------------
+
+    @tool
     def describe_surroundings() -> str:
         """Get a general description of what the robot currently sees.
-        
+
+        Use this when the user asks what you see, describe the room, or look around.
+
         Returns:
-            str: A description of the current scene and surroundings
+            str: A description of the current scene and surroundings.
         """
-        image = walkieCamera.capture_rgb()
-        print("Describing current surroundings...")
-        # TODO: Implement actual scene description
-        # For now, return a placeholder
-        return "Current view: [Placeholder - implement with actual vision capabilities]"
+        print(f"Describing surroundings")
+        return vision.describe()
 
+    @tool
+    def classify_scene(categories: str) -> str:
+        """Classify the current view into one of the given categories (e.g. room types).
 
-    # =============================================================================
-    # Vision Understanding - People Detection Tools
-    # =============================================================================
+        Use when you need to label the current place (kitchen, living room, office, etc.).
+        Pass a comma-separated list of possible categories.
+
+        Args:
+            categories: Comma-separated list of possible categories, e.g. "kitchen, living room, bedroom, office".
+
+        Returns:
+            str: The best-matching category and confidence.
+        """
+        cat_list = [c.strip() for c in categories.split(",") if c.strip()]
+        if not cat_list:
+            return "Error: Provide at least one category (e.g. 'kitchen, living room')."
+        name, conf = vision.classify_scene(cat_list)
+        print(f"Classified scene as: {name} (confidence: {conf:.2f})")
+        return f"Classified as: {name} (confidence: {conf:.2f})"
+
+    # -------------------------------------------------------------------------
+    # Object detection and search
+    # -------------------------------------------------------------------------
+
+    @tool
+    def detect_object(object_name: str) -> str:
+        """Detect a specific object in the current camera view.
+
+        Uses segmentation and embedding similarity to find the best-matching object.
+        Use when the user asks "do you see a X?" or "is there a X in view?".
+
+        Args:
+            object_name: Name of the object to look for (e.g. "coffee mug", "laptop").
+
+        Returns:
+            str: Whether the object was found and a short description, or "not found".
+        """
+        query_emb = vision.embed_text(object_name)
+        objs = vision.detect_and_embed_objects()
+        if not objs:
+            return f"No objects detected in current view. Cannot confirm '{object_name}'."
+        best_sim = -1.0
+        best_idx = 0
+        for i, o in enumerate(objs):
+            sim = vision.embedding.similarity(query_emb, o["embedding"])
+            if sim > best_sim:
+                best_sim = sim
+                best_idx = i
+        # Heuristic: require similarity above ~0.25 (normalized CLIP can be 0.2-0.4 for related things)
+        if best_sim < 0.22:
+            return f"Object '{object_name}' not found in current view. (Best match score: {best_sim:.2f})"
+        obj = objs[best_idx]
+        print(f"Found '{object_name}' in view (match score: {best_sim:.2f}). Region: bbox={obj['bbox']}, area_ratio={obj['area_ratio']:.2%}.")
+        return f"Found '{object_name}' in view (match score: {best_sim:.2f}). Region: bbox={obj['bbox']}, area_ratio={obj['area_ratio']:.2%}."
+
+    @tool
+    def find_object(object_name: str) -> str:
+        """Search the database for where a specific object is or was last seen.
+
+        Use when the user asks "where is the X?" and you need to query stored locations.
+        Requires the object to have been stored via scan_and_remember or similar.
+
+        Args:
+            object_name: Name of the object to find (e.g. "coffee mug", "fire extinguisher").
+
+        Returns:
+            str: Known location(s) and coordinates, or a message if not in database.
+        """
+        if db is None:
+            return "Object database not available. Cannot search for stored objects."
+        query_emb = vision.embed_text(object_name)
+        hits = db.query_objects(query_emb, n_results=5)
+        if not hits:
+            return f"No stored location for '{object_name}' in the database."
+        lines = [f"Found {len(hits)} location(s) for '{object_name}':"]
+        for h in hits:
+            xyz = h.get("object_xyz", [0, 0, 0])
+            sid = h.get("scene_id", "")
+            dist = h.get("distance", 0)
+            lines.append(f"  - position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), scene_id={sid}, distance={dist:.3f}")
+        print(f"Found {len(hits)} location(s) for '{object_name}': {lines}")
+        return "\n".join(lines)
+
+    @tool
+    def find_scene(scene_description: str) -> str:
+        """Search the database for a scene or location matching the description.
+
+        Use when the user asks "where is the kitchen?" or "find a room with a whiteboard".
+
+        Args:
+            scene_description: Description of the scene or location (e.g. "kitchen", "meeting room").
+
+        Returns:
+            str: Matching locations and their coordinates, or a message if none found.
+        """
+        if db is None:
+            return "Scene database not available. Cannot search for stored scenes."
+        query_emb = vision.embed_text(scene_description)
+        hits = db.query_scenes(query_emb, n_results=5)
+        if not hits:
+            return f"No stored scene matching '{scene_description}' in the database."
+        lines = [f"Found {len(hits)} scene(s) matching '{scene_description}':"]
+        for h in hits:
+            sid = h.get("scene_id", "")
+            xyz = h.get("scene_xyz", [0, 0, 0])
+            dist = h.get("distance", 0)
+            lines.append(f"  - scene_id={sid}, position (x={xyz[0]:.2f}, y={xyz[1]:.2f}, z={xyz[2]:.2f}), distance={dist:.3f}")
+        print(f"Found {len(hits)} scene(s) matching '{scene_description}': {lines}")
+        return "\n".join(lines)
+
+    @tool
+    def scan_and_remember(
+        x: float = 0.0,
+        y: float = 0.0,
+        z: float = 0.0,
+        heading: float = 0.0,
+    ) -> str:
+        """Scan the current view and store detected objects and scene in the database.
+
+        Use when the user wants to remember this location or build a map.
+        If the robot knows its current pose, pass x, y, z, heading so locations are stored correctly.
+
+        Args:
+            x: Current robot x position (meters). Default 0.
+            y: Current robot y position (meters). Default 0.
+            z: Current robot z position (meters). Default 0.
+            heading: Current robot heading (radians). Default 0.
+
+        Returns:
+            str: Summary of what was stored (scene + number of objects).
+        """
+        if db is None:
+            return "Database not available. Cannot store scene or objects."
+        scene_label, _ = vision.classify_scene(
+            ["kitchen", "living room", "bedroom", "bathroom", "office", "dining room", "corridor", "other"]
+        )
+        scene_id = f"scene_{uuid.uuid4().hex[:8]}"
+        full_image = vision.capture()
+        scene_emb = vision.embed_image(full_image)
+        db.upsert_scene(
+            SceneRecord(
+                scene_id=scene_id,
+                scene_xyz=[x, y, z],
+                scene_embedding=scene_emb,
+                heading=heading,
+            )
+        )
+        objs = vision.detect_and_embed_objects()
+        stored = 0
+        for i, o in enumerate(objs):
+            print(f"Storing object {i} of {len(objs)}: {o['bbox']}, area_ratio={o['area_ratio']:.2%}")
+            obj_id = f"obj_{scene_id}_{i}"
+            db.upsert_object(
+                ObjectRecord(
+                    object_id=obj_id,
+                    object_xyz=[x, y, z],
+                    object_embedding=o["embedding"],
+                    heading=heading,
+                    scene_id=scene_id,
+                )
+            )
+            stored += 1
+        print(f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}.")
+        return f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}."
+
+    # -------------------------------------------------------------------------
+    # People (caption-based for now)
+    # -------------------------------------------------------------------------
 
     @tool
     def detect_people() -> str:
-        """Detect all people currently visible in the camera view.
-        
+        """Detect and describe all people currently visible in the camera view.
+
+        Uses vision model to describe how many people and their approximate poses/positions.
+        Use when the user asks "how many people?" or "who do you see?".
+
         Returns:
-            str: JSON-like string containing detected people with their IDs and basic info
+            str: Description of people in view (count, poses, positions if possible).
         """
-        print("Detecting people in view...")
-        # TODO: Implement actual people detection using vision model
-        # For now, return a placeholder
-        return """Detected 2 people:
-    - person_1: Standing, facing camera, ~2m away
-    - person_2: Sitting, side profile, ~3m away"""
+        prompt = (
+            "Describe all people visible in this image: how many, their approximate positions (left/center/right, distance), "
+            "and what they are doing (standing, sitting, waving, etc.). Be concise."
+        )
+        print(f"Describing people: {prompt}")
+        return vision.describe(prompt=prompt)
 
-
-    @tool(parse_docstring=True)
+    @tool
     def recognize_pose(person_id: str) -> str:
-        """Analyze and recognize the pose of a specific detected person.
-        
+        """Analyze the pose of a specific person (e.g. person_1, person_2 from detect_people).
+
+        Use after detect_people when the user asks for more detail about one person's pose.
+
         Args:
-            person_id: The ID of the person to analyze (e.g., "person_1")
-        
+            person_id: Identifier like "person_1" or "the person on the left".
+
         Returns:
-            str: Description of the person's pose (standing, sitting, waving, pointing, etc.)
+            str: Description of that person's pose and posture.
         """
-        print(f"Recognizing pose for: {person_id}")
-        # TODO: Implement actual pose recognition
-        # For now, return a placeholder
-        return f"Pose for {person_id}: Standing upright, arms at sides, facing forward. [Placeholder]"
+        prompt = (
+            f"Focus on {person_id} (or the person referred to). "
+            "Describe their body pose in detail: standing/sitting, arm positions, facing direction, gesture if any."
+        )
+        print(f"Describing pose: {prompt}")
+        return vision.describe(prompt=prompt)
 
-
-    @tool(parse_docstring=True)
+    @tool
     def recognize_face(person_id: str) -> str:
-        """Perform face recognition on a specific detected person.
-        
-        Args:
-            person_id: The ID of the person to recognize (e.g., "person_1")
-        
-        Returns:
-            str: FaceID if the person is known, or "unknown" with face description
-        """
-        print(f"Recognizing face for: {person_id}")
-        # TODO: Implement actual face recognition with FaceID database
-        # For now, return a placeholder
-        return f"Face recognition for {person_id}: Unknown person. No matching FaceID found. [Placeholder]"
+        """Describe the face of a specific person (identity/recognition not yet supported).
 
+        Use when the user asks "who is that?" or "do you recognize them?".
+        Face recognition against a stored database is not implemented yet; returns a description only.
+
+        Args:
+            person_id: Identifier like "person_1" or "the person on the left".
+
+        Returns:
+            str: Face description or message that recognition is not available.
+        """
+        prompt = (
+            f"Describe the face of {person_id} (or the person referred to): "
+            "visible features, approximate age, expression. Do not guess identity."
+        )
+        print(f"Describing face: {prompt}")
+        return vision.describe(prompt=prompt)
 
     @tool
     def get_people_coordinates() -> str:
-        """Get the coordinates and tracking information for all detected people.
-        
+        """Get approximate positions of people in the current view (left/center/right, distance).
+
         Returns:
-            str: JSON-like string with people positions (x, y coordinates) and detection timeframe
+            str: Text description of where people are relative to the camera.
         """
-        print("Getting people coordinates...")
-        # TODO: Implement actual coordinate extraction from object detection
-        # For now, return a placeholder
-        return """People coordinates (relative to robot):
-    - person_1: x=1.5m, y=0.5m, detected at 00:00:01, last seen 00:00:05
-    - person_2: x=2.0m, y=-1.0m, detected at 00:00:02, last seen 00:00:05
-    [Placeholder - implement with actual detection]"""
+        prompt = (
+            "List each person visible and their approximate position: "
+            "left/center/right in frame, and approximate distance (close, medium, far). One line per person."
+        )
+        print(f"Describing people coordinates: {prompt}")
+        return vision.describe(prompt=prompt)
 
-
-    # =============================================================================
-    # People Finding Tools
-    # =============================================================================
-
-    @tool(parse_docstring=True)
+    @tool
     def find_person(name: str) -> str:
-        """Search for a specific person by name or FaceID using tracking history.
-        
-        This searches through the chat history and previous detections to find
-        where a specific person was last seen or is currently located.
-        
+        """Search for a person by name using the database.
+
+        Use when the user asks "where is John?" if you have a people database.
+        People database may be empty; returns result of search or message.
+
         Args:
-            name: The name or FaceID of the person to find
-        
+            name: Name or identifier of the person to find.
+
         Returns:
-            str: Information about the person's last known location or current position
+            str: Last known location or "not found".
         """
-        print(f"Finding person: {name}")
-        # TODO: Implement actual person finding using tracking history and FaceID database
-        # For now, return a placeholder
-        return f"Searching for '{name}': No matching person found in current view or recent history. [Placeholder]"
-
-
-    # =============================================================================
-    # Object and Scene Finding Tools (Database Search)
-    # =============================================================================
-
-    @tool(parse_docstring=True)
-    def detect_object(object_name: str) -> str:
-        """Detect a specific object in the current view.
-        
-        Args:
-            object_name: The name of the object to detect (e.g., "coffee mug", "fire extinguisher")
-        """
-        print(f"Detecting object: {object_name}")
-        return f"Detecting '{object_name}': No matching object found in current view. [Placeholder]"
-
-
-    @tool(parse_docstring=True)
-    def find_object(object_name: str) -> str:
-        """Search the database for the location of a specific object.
-        
-        This queries the object database to find where a specific object
-        is typically located or was last seen.
-        
-        Args:
-            object_name: The name of the object to find (e.g., "coffee mug", "fire extinguisher")
-        
-        Returns:
-            str: Information about the object's known location(s)
-        """
-        print(f"Finding object: {object_name}")
-        # TODO: Implement actual object database search
-        # For now, return a placeholder
-        return f"Object search for '{object_name}': No location data found in database. [Placeholder]"
-
-
-    @tool(parse_docstring=True)
-    def find_scene(scene_description: str) -> str:
-        """Search the database for a scene or location matching the description.
-        
-        This queries the scene database to find locations that match
-        a given description (e.g., "meeting room", "kitchen", "entrance").
-        
-        Args:
-            scene_description: Description of the scene or location to find
-        
-        Returns:
-            str: Information about matching locations and their coordinates
-        """
-        print(f"Finding scene: {scene_description}")
-        # TODO: Implement actual scene database search
-        # For now, return a placeholder
-        return f"Scene search for '{scene_description}': No matching locations found in database. [Placeholder]"
+        if db is None:
+            return "People database not available. Cannot search for person by name."
+        # WalkieVectorDB query_people expects a face_embedding; we don't have one from name.
+        # So we can't do semantic search by name without a different index. Return a clear message.
+        print(f"Person search by name ('{name}') is not supported yet. The database matches by face embedding. Use detect_people and recognize_face to describe who is in view.")
+        return (
+            f"Person search by name ('{name}') is not supported yet. "
+            "The database matches by face embedding. Use detect_people and recognize_face to describe who is in view."
+        )
 
     return [
         describe_surroundings,
+        classify_scene,
+        detect_object,
+        find_object,
+        find_scene,
+        scan_and_remember,
         detect_people,
         recognize_pose,
         recognize_face,
         get_people_coordinates,
         find_person,
-        detect_object,
-        find_object,
-        find_scene,
     ]

@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
+from src.vision import WalkieVision
+from src.db import WalkieVectorDB
 
 load_dotenv()
 
@@ -35,29 +37,45 @@ walkie_audio = WalkieAudio(
     }
 )
 
-# Initialize camera
+# Initialize vision (camera + caption + embedding + object detection) and optional vector DB
+walkie_vision = WalkieVision(
+    camera_device=0,
+    caption_provider="google",
+    embedding_provider="clip",
+    detection_provider="sam",
+)
+walkie_db = WalkieVectorDB(persist_directory="chroma_db")
 
 # Create the main Walkie agent with sub-agents for movement and vision
-agent = create_walkie_agent(model, walkie_audio)
+agent = create_walkie_agent(
+    model,
+    walkie_audio,
+    walkie_vision=walkie_vision,
+    walkie_db=walkie_db,
+)
 
 def main():
-    
-    while True:
-        print("Recording...")
-        text = walkie_audio.listen()
-        if text == "":
-            continue
-        print(f"Transcription: {text}")
-        
-        result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
-        content = result["messages"][-1].content
-        
-        print(content)
-        
-        # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
-        # print(styled_text)
-        
-        # walkie_audio.speak(styled_text)
+    walkie_vision.open()
+    try:
+        while True:
+            print("Recording...")
+            text = walkie_audio.listen()
+            if text == "":
+                continue
+            print(f"Transcription: {text}")
+
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": text}]},
+                {"configurable": {"thread_id": "1"}},
+            )
+            content = result["messages"][-1].content
+
+            print(content)
+
+            # styled_text = ElevenLabsProvider.style_text(model, content, personality="...")
+            # walkie_audio.speak(styled_text)
+    finally:
+        walkie_vision.close()
 
 
 if __name__ == "__main__":

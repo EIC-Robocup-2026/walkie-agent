@@ -208,3 +208,9 @@ __marimo__/
 
 # Service Accounts
 service-accounts.json
+
+# Chroma
+chroma_db/
+
+# Models
+*.pth

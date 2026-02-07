@@ -50,7 +50,7 @@ def print_cameras(max_check: int = 10) -> None:
     print("-" * 60)
 
 
-class WalkieCamera:
+class Camera:
     """Camera interface for capturing images and video frames.
     
     Provides methods for capturing single frames, continuous streaming,
@@ -195,7 +195,7 @@ class WalkieCamera:
         _, buffer = cv2.imencode(".png", frame)
         return buffer.tobytes()
 
-    def __enter__(self) -> "WalkieCamera":
+    def __enter__(self) -> "Camera":
         """Context manager entry - opens the camera."""
         self.open()
         return self
