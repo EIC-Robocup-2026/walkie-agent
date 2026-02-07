@@ -19,20 +19,24 @@ def initialize_sub_agents(model):
 
 @tool(parse_docstring=True)
 def control_actuators(task: str) -> str:
-    """Command a movement or physical action task to the Actuator Agent. Use this too when you need to move the drive base (must specify absolute or relative) or use your robotic arm.
-    
-    Use this tool when you need to:
-    - Move to a specific location (e.g., "go to coordinates x=5, y=3")
-    - Move to a specific location relative to your current position (e.g., "go 2 meters to the right relatively")
-    - Use your arm (e.g., "wave hello", "point to the left", "pick up the object", "shake hands")
-    - Check your current position
-    
+    """Command a movement or physical action to the Actuator Agent. Use for drive-base navigation (absolute or relative) or arm actions.
+
+    When to use:
+    - Move to map coordinates: "go to x=5, y=3" or "navigate to (2, 1) facing 90 degrees"
+    - Move relative to current pose: "go forward 1 meter", "move 0.5 m to the left", "turn left 90 degrees"
+    - Arm gestures or manipulation: "wave hello", "point to the left", "pick up the cup", "shake hands"
+    - Check pose: "what is my current position?" or "where am I?"
+
+    When NOT to use:
+    - For seeing or recognizing something (use use_vision instead)
+    - For speaking to the user (use speak instead)
+    - For planning a list of steps (use write_todos if there are 3+ steps)
+
     Args:
-        task: A natural language description of what physical action to perform.
-              Be specific about locations (absolute or relative), directions, or actions needed.
-    
+        task: Natural language description of the movement or action. Be specific: absolute vs relative, units (meters, degrees), and arm action if needed.
+
     Returns:
-        str: The result of the movement/action task
+        str: Result of the movement or action (success, pose, or error message).
     """
     if _actuator_agent is None:
         return "Error: Actuator agent not initialized. Please initialize sub-agents first."
@@ -48,43 +52,24 @@ def control_actuators(task: str) -> str:
 
 @tool(parse_docstring=True)
 def use_vision(task: str) -> str:
-    """Delegate a vision or perception task to the Vision Agent.
-    
-    Use this tool when you need to:
-    
-    **People Detection & Recognition:**
-    - Detect people in view and get their positions
-    - Recognize poses (standing, sitting, waving, pointing, etc.)
-    - Identify known individuals using face recognition (FaceID)
-    - Get coordinates and tracking data for detected people
-    
-    **People Finding:**
-    - Search for a specific person by name or FaceID
-    - Find where someone was last seen
-    
-    **Object & Scene Finding:**
-    - Search for object locations in the database
-    - Find locations matching a description (e.g., "meeting room", "kitchen")
-    
-    **General Vision:**
-    - Look at something and describe it
-    - Analyze your surroundings
-    - Read signs, documents, or text
-    
+    """Delegate a vision or perception task to the Vision Agent. Use when you need to see, recognize, or find something in the environment.
+
+    When to use:
+    - Describe current view: "what do you see?", "describe what's in front of you", "look around and summarize"
+    - People: "how many people are in view?", "detect people and their poses", "is anyone I know? check faces", "where is John?" (search by name/FaceID)
+    - Objects and places: "where is the coffee mug?" (in view or in database), "find the kitchen" or "find a room with a whiteboard"
+    - Text: "read the sign in front of you", "what does the it say?"
+
+    When NOT to use:
+    - For moving or turning (use control_actuators)
+    - For speaking (use speak)
+    - When the user only asks a general question with no need to look (e.g., "what time is it?")
+
     Args:
-        task: A natural language description of what to look at or analyze.
-              Be specific about what information you need.
-    
+        task: Natural language description of what to look at, detect, or find. Be specific (e.g., "find the red cup" not just "find object").
+
     Returns:
-        str: The result of the vision analysis
-    
-    Examples:
-        - "Detect all people in view and tell me their poses"
-        - "Is there anyone I recognize? Check faces"
-        - "Find where John was last seen"
-        - "Where is the meeting room?"
-        - "Look around and describe what you see"
-        - "Read the text on the sign in front of you"
+        str: Vision result (descriptions, positions, identities, or "vision disabled" / error).
     """
     if _vision_agent is None:
         return "Error: Vision agent not initialized. Please initialize sub-agents first."
@@ -101,7 +86,10 @@ def use_vision(task: str) -> str:
 def create_speak_tool(walkieAudio: WalkieAudio) -> str:
     @tool(parse_docstring=True)
     def speak(text: str) -> str:
-        """Speak the given text out loud. This is a tool that you can use to speak to the user to give them information on what you are doing.
+        """Speak the given text out loud. This is a tool that you can use to speak to the user to give them information beforing calling other tools.
+        
+        When to use:
+        - To give the user information before calling other tools (performing actions)
         
         Args:
             text: The text to speak
@@ -114,5 +102,17 @@ def create_speak_tool(walkieAudio: WalkieAudio) -> str:
         return "Speech completed"
     return speak
 
+@tool(parse_docstring=True)
+def think(thought: str) -> str:
+    """This is a tool that you can use to think about the task at hand.
+    
+    Args:
+        thought: The thought to think about
+    
+    Returns:
+        str: The result of the thinking
+    """
+    print(f"Thinking: {thought}")
+    return "Thinking completed"
 # Export tools for use in the main agent
 walkie_tools = [control_actuators, use_vision]

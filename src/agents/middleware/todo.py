@@ -42,79 +42,48 @@ class PlanningState(AgentState[Any]):
     """List of todo items for tracking task progress."""
 
 
-WRITE_TODOS_TOOL_DESCRIPTION = """Use this tool to create and manage a structured task list for your current work session. This helps you track progress, organize complex tasks, and demonstrate thoroughness to the user.
+WRITE_TODOS_TOOL_DESCRIPTION = """Use this tool to create and manage a structured task list for physical and perceptual tasks (navigation, finding people or objects, arm actions, etc.). This helps you track progress on multi-step robot tasks and gives the user visibility into what you are doing.
 
-Only use this tool if you think it will be helpful in staying organized. If the user's request is trivial and takes less than 3 steps, it is better to NOT use this tool and just do the task directly.
+Only use this tool when the request involves 3 or more distinct steps. For one or two simple actions (e.g., "go forward 1 meter", "what is my position?"), do the task directly and do NOT call this tool.
 
 ## When to Use This Tool
 Use this tool in these scenarios:
 
-1. Complex multi-step tasks - When a task requires 3 or more distinct steps or actions
-2. Non-trivial and complex tasks - Tasks that require careful planning or multiple operations
-3. User explicitly requests todo list - When the user directly asks you to use the todo list
-4. User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
-5. The plan may need future revisions or updates based on results from the first few steps
+1. **Multi-step navigation and actions** — e.g., go to the kitchen, find the coffee mug, bring it to the living room
+2. **Search then act** — e.g., find person X, then navigate to them and greet them; or find where the keys are, then go there
+3. **Several physical steps** — e.g., turn to face the door, move forward 2 m, wave, then return to base
+4. **User gives a list of tasks** — e.g., "first go to the office, then check if the door is open, then come back"
+5. **User explicitly asks for a plan** — e.g., "can you make a plan to deliver this to John?"
 
 ## How to Use This Tool
-1. When you start working on a task - Mark it as in_progress BEFORE beginning work.
-2. After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation.
-3. You can also update future tasks, such as deleting them if they are no longer necessary, or adding new tasks that are necessary. Don't change previously completed tasks.
-4. You can make several updates to the todo list at once. For example, when you complete a task, you can mark the next task you need to start as in_progress.
+1. When you start working on a task — Mark it as in_progress BEFORE you begin (e.g., before calling control_actuators or use_vision).
+2. After completing a step — Mark it as completed and add any new follow-up steps you discover (e.g., "Bring object to user" after finding it).
+3. You can update the list: remove tasks that are no longer needed, or add new ones. Do not change completed tasks.
+4. You can update several items at once (e.g., mark one completed and the next in_progress).
 
 ## When NOT to Use This Tool
-It is important to skip using this tool when:
-1. There is only a single, straightforward task
-2. The task is trivial and tracking it provides no benefit
-3. The task can be completed in less than 3 trivial steps
-4. The task is purely conversational or informational
+Skip this tool when:
+1. **Single movement or query** — e.g., "move forward 1 meter", "what do you see?", "where are you?"
+2. **Simple greeting or conversation** — e.g., "hello", "how are you?", "what can you do?"
+3. **One or two trivial steps** — e.g., "turn left" then "go forward" with no larger goal
+4. **Purely informational** — answering a question that does not involve physical or perceptual steps
 
 ## Task States and Management
 
-1. **Task States**: Use these states to track progress:
-   - pending: Task not yet started
-   - in_progress: Currently working on (you can have multiple tasks in_progress at a time if they are not related to each other and can be run in parallel)
-   - completed: Task finished successfully
+1. **Task states:** pending (not started), in_progress (doing it now), completed (done).
+2. **Rules:** Mark the first task in_progress as soon as you create the list. Mark tasks completed only when fully done. Remove tasks that become irrelevant. Unless everything is done, keep at least one task in_progress.
+3. **Completion:** Only mark completed when the step is fully accomplished. If something fails or you are blocked, keep it in_progress or add a new task for resolving the blocker.
+4. **Breakdown:** Use clear, actionable steps (e.g., "Navigate to kitchen (x=2, y=3)", "Locate coffee mug using vision", "Pick up mug with arm").
 
-2. **Task Management**:
-   - Update task status in real-time as you work
-   - Mark tasks complete IMMEDIATELY after finishing (don't batch completions)
-   - Complete current tasks before starting new ones
-   - Remove tasks that are no longer relevant from the list entirely
-   - IMPORTANT: When you write this todo list, you should mark your first task (or tasks) as in_progress immediately!.
-   - IMPORTANT: Unless all tasks are completed, you should always have at least one task in_progress to show the user that you are working on something.
-
-3. **Task Completion Requirements**:
-   - ONLY mark a task as completed when you have FULLY accomplished it
-   - If you encounter errors, blockers, or cannot finish, keep the task as in_progress
-   - When blocked, create a new task describing what needs to be resolved
-   - Never mark a task as completed if:
-     - There are unresolved issues or errors
-     - Work is partial or incomplete
-     - You encountered blockers that prevent completion
-     - You couldn't find necessary resources or dependencies
-     - Quality standards haven't been met
-
-4. **Task Breakdown**:
-   - Create specific, actionable items
-   - Break complex tasks into smaller, manageable steps
-   - Use clear, descriptive task names
-
-Being proactive with task management demonstrates attentiveness and ensures you complete all requirements successfully
-Remember: If you only need to make a few tool calls to complete a task, and it is clear what you need to do, it is better to just do the task directly and NOT call this tool at all."""  # noqa: E501
+Remember: For short, clear requests that need only one or two actions, do them directly without calling this tool."""
 
 WRITE_TODOS_SYSTEM_PROMPT = """## `write_todos`
 
-You have access to the `write_todos` tool to help you manage and plan complex objectives.
-Use this tool for complex objectives to ensure that you are tracking each necessary step and giving the user visibility into your progress.
-This tool is very helpful for planning complex objectives, and for breaking down these larger complex objectives into smaller steps.
+You have access to the `write_todos` tool to plan and track multi-step robot tasks (navigation, finding people/objects, arm actions, etc.). Use it when the user's request has 3 or more distinct physical or perceptual steps, so you can track progress and show the user your plan.
 
-It is critical that you mark todos as completed as soon as you are done with a step. Do not batch up multiple steps before marking them as completed.
-For simple objectives that only require a few steps, it is better to just complete the objective directly and NOT use this tool.
-Writing todos takes time and tokens, use it when it is helpful for managing complex many-step problems! But not for simple few-step requests.
+Mark todos as completed as soon as you finish each step. Do not batch completions. For simple requests (one or two actions), complete them directly and do NOT use this tool — it costs time and tokens.
 
-## Important To-Do List Usage Notes to Remember
-- The `write_todos` tool should never be called multiple times in parallel.
-- Don't be afraid to revise the To-Do list as you go. New information may reveal new tasks that need to be done, or old tasks that are irrelevant."""  # noqa: E501
+**Important:** Call `write_todos` at most once per turn. Revise the list as you go: add new steps if you discover them, remove steps that are no longer needed."""
 
 
 @tool(description=WRITE_TODOS_TOOL_DESCRIPTION)
@@ -186,6 +155,7 @@ class TodoListMiddleware(AgentMiddleware):
             todos: list[Todo], tool_call_id: Annotated[str, InjectedToolCallId]
         ) -> Command[Any]:
             """Create and manage a structured task list for your current work session."""
+            
             return Command(
                 update={
                     "todos": todos,
@@ -255,6 +225,7 @@ class TodoListMiddleware(AgentMiddleware):
             icon = status_icons.get(todo.get("status", "pending"), "⬜")
             lines.append(f"{i}. {icon} [{todo.get('status', 'pending')}] {todo.get('content', '')}")
 
+        print(f"Formatted todos: {lines}")
         return "\n".join(lines)
 
     def _build_system_message(self, request: ModelRequest) -> SystemMessage:
