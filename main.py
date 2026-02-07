@@ -5,14 +5,14 @@ from dotenv import load_dotenv
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
-from src.vision import WalkieCamera
 
 load_dotenv()
 
 model = ChatOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
+    temperature=0,
     base_url="https://openrouter.ai/api/v1",
-    model="openai/gpt-oss-120b:nitro",
+    model="google/gemini-3-flash-preview:nitro",
 )
 # model = ChatGoogleGenerativeAI(
 #     model="gemini-2.5-flash",
@@ -36,8 +36,6 @@ walkie_audio = WalkieAudio(
 )
 
 # Initialize camera
-walkie_camera = WalkieCamera(device=2)
-walkie_camera.open()
 
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(model, walkie_audio)

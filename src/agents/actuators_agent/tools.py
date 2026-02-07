@@ -14,7 +14,6 @@ robot = WalkieRobot(ip=robot_ip, enable_camera=False)
 
 def _get_current_pose():
     """Get the current pose of the robot"""
-    print("Getting current pose of the robot")
     pose = robot.status.get_pose()
     if pose is None:
         raise ValueError("Unable to get robot pose at the moment")
@@ -22,32 +21,36 @@ def _get_current_pose():
 
 @tool(parse_docstring=True)
 def move_absolute(x: float, y: float, heading: float = 0.0) -> str:
-    """Move the robot to the specified coordinates x and y in meters on the map
+    """Move the robot to a specific (x, y) position on the map, with optional heading. Use when the goal is given in map coordinates.
+
+    Units: x, y in meters; heading in degrees (0 = forward/east, 90 = left/north).
 
     Args:
-        x (float): The x coordinate to move to
-        y (float): The y coordinate to move to
-        heading (float): The heading to move to (in degrees)
+        x: Target x coordinate in meters (map frame).
+        y: Target y coordinate in meters (map frame).
+        heading: Target heading in degrees (default: keep current).
 
     Returns:
-        str: The result of the movement
+        str: Result of the navigation (success or error).
     """
     print(f"Moving robot absolutely to x: {x}, y: {y}, heading: {heading}")
     heading_rad = math.radians(heading)
     result = robot.nav.go_to(x=x, y=y, heading=heading_rad, blocking=True)
-    return f"Robot navigation completed: {result}"
+    return f"Robot moved successfully"
 
 @tool(parse_docstring=True)
 def move_relative(x: float, y: float, heading: float = 0.0) -> str:
-    """Move the robot to the specified coordinates x and y in meters on the map relative to the current position
+    """Move the robot relative to its current pose. Use for "go forward N meters", "turn left 90 degrees", etc.
+
+    In the robot's local frame: +x = forward, +y = left. Units: meters for x, y; degrees for heading (positive = counterclockwise).
 
     Args:
-        x (float): The x coordinate to move relative to the current position
-        y (float): The y coordinate to move relative to the current position
-        heading (float, optional): The heading to move to (in degrees)
+        x: Distance forward in meters (negative = backward).
+        y: Distance left in meters (negative = right).
+        heading: Change in heading in degrees (positive = turn left).
 
     Returns:
-        str: The result of the movement
+        str: Result of the movement (success or error).
     """
     print(f"Moving robot relatively to x: {x}, y: {y}, heading: {heading}")
     pose = _get_current_pose()
@@ -61,11 +64,11 @@ def move_relative(x: float, y: float, heading: float = 0.0) -> str:
     y_global = y_cur + x * math.sin(heading_cur_rad) + y * math.cos(heading_cur_rad)
     print(f"Moving to global coordinates: x: {x_global}, y: {y_global}, heading: {heading_cur_rad + heading_rad}")
     result = robot.nav.go_to(x=x_global, y=y_global, heading=heading_cur_rad + heading_rad, blocking=True)
-    return f"Robot navigation completed: {result}"
+    return f"Robot moved successfully"
 
 @tool
 def get_current_pose() -> str:
-    """Get the current pose of the robot"""
+    """Get the robot's current pose (x, y in meters, heading in degrees). Use before planning a relative move or to confirm position after a move."""
     print("Getting current pose of the robot")
     pose = _get_current_pose()
     # Copied from Walkie SDK
@@ -73,7 +76,7 @@ def get_current_pose() -> str:
 
 @tool
 def command_arm(action: str) -> str:
-    """Command the arm of the robot to perform the specified action"""
+    """Command the robotic arm to perform an action. Use for gestures (e.g. wave, point) or manipulation (e.g. pick up, place). Be specific: "wave hello", "point left", "pick up the cup"."""
     print(f"Commanding arm to perform action: {action}")
     # Test
     return f"Arm command completed: {action}"

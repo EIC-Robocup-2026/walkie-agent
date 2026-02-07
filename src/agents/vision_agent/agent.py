@@ -1,9 +1,7 @@
 from langchain.agents import create_agent
-from langchain.agents.middleware import TodoListMiddleware
+from ..middleware import SequentialToolCallMiddleware, TodoListMiddleware
 
 from vision.camera import WalkieCamera
-
-from ..common import DisableParallelToolCallsMiddleware
 
 from .prompts import VISION_AGENT_SYSTEM_PROMPT
 from .tools import get_vision_tools
@@ -27,7 +25,7 @@ def create_vision_agent(model, walkieCamera: WalkieCamera = None):
         model=model,
         tools=tools,
         middleware=[
-            DisableParallelToolCallsMiddleware(),
+            SequentialToolCallMiddleware(),
             TodoListMiddleware(),
         ],
         system_prompt=VISION_AGENT_SYSTEM_PROMPT,
