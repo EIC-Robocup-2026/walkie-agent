@@ -5,9 +5,9 @@ from ..actuators_agent import create_actuator_agent
 from ..vision_agent import create_vision_agent
 
 
-def create_sub_agents_tools(model, walkie_vision=None, walkie_db=None):
+def create_sub_agents_tools(model, robot, walkie_vision, walkie_db):
     """Initialize sub-agents with the provided model and optional vision/db. Call this before using the tools."""
-    _actuator_agent = create_actuator_agent(model)
+    _actuator_agent = create_actuator_agent(model, robot=robot)
     _vision_agent = create_vision_agent(model, walkie_vision=walkie_vision, walkie_db=walkie_db)
 
     tools = []

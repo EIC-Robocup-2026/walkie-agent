@@ -2,6 +2,7 @@ from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 from dotenv import load_dotenv
+from walkie_sdk import WalkieRobot
 from src.audio.tts.providers.elevenlabs import ElevenLabsProvider
 from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
@@ -22,8 +23,19 @@ model = ChatOpenAI(
 #     ,  # Gemini 3.0+ defaults to 1.0
 # )
 
+ZENOH_PORT = 7447
+
+robot_ip = os.getenv("ROBOT_IP") or "127.0.0.1"
+
+# เชื่อมต่อหุ่นยนต์
+robot = WalkieRobot(
+    ip=robot_ip,
+    camera_protocol="zenoh",
+    camera_port=ZENOH_PORT,
+)
 
 walkie_audio = WalkieAudio(
+    microphone_device=13,
     stt_provider="whisper",
     tts_provider="elevenlabs",
     # microphone_device=12,
@@ -37,9 +49,12 @@ walkie_audio = WalkieAudio(
     }
 )
 
+for mic in walkie_audio.list_microphones():
+    print(mic)
+
 # Initialize vision (camera + caption + embedding + object detection) and optional vector DB
 walkie_vision = WalkieVision(
-    camera_device=0,
+    robot,
     caption_provider="google",
     embedding_provider="clip",
     detection_provider="yolo",
@@ -54,28 +69,35 @@ agent = create_walkie_agent(
     walkie_db=walkie_db,
 )
 
+def run_agent(text):
+    result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
+    content = result["messages"][-1].content
+    return content
+
+def run_agent(text):
+    result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
+    content = result["messages"][-1].content
+    return content
+
 def main():
-    walkie_vision.open()
-    try:
-        while True:
-            print("Recording...")
-            text = walkie_audio.listen()
-            if text == "":
-                continue
-            print(f"Transcription: {text}")
 
-            result = agent.invoke(
-                {"messages": [{"role": "user", "content": text}]},
-                {"configurable": {"thread_id": "1"}},
-            )
-            content = result["messages"][-1].content
-
-            print(content)
-
-            # styled_text = ElevenLabsProvider.style_text(model, content, personality="...")
-            # walkie_audio.speak(styled_text)
-    finally:
-        walkie_vision.close()
+    
+        
+    # result = run_agent("From the current view, how many chairs are there?")
+    
+    # print(result)
+    
+    while True:
+        print("Recording...")
+        text = walkie_audio.listen()
+        if text == "":
+            continue
+        print(f"Transcription: {text}")
+        
+        # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
+        # print(styled_text)
+        
+        # walkie_audio.speak(styled_text)
 
 
 if __name__ == "__main__":

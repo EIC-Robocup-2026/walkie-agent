@@ -7,12 +7,8 @@ it for inclusion in agent system prompts.
 from __future__ import annotations
 
 import math
-from typing import Any
 
-# Lazy import to avoid circular imports when agents load middleware
-def _get_robot():
-    from src.agents.actuators_agent.tools import robot
-    return robot
+from walkie_sdk import WalkieRobot
 
 
 class RobotState:
@@ -25,7 +21,7 @@ class RobotState:
 
     def __init__(
         self,
-        robot: Any | None = None,
+        robot: WalkieRobot,
         *,
         vision_enabled: bool = True,
     ) -> None:
@@ -45,9 +41,8 @@ class RobotState:
         Returns:
             Dict with keys x, y, heading (radians), or None if unavailable.
         """
-        r = self._robot if self._robot is not None else _get_robot()
         try:
-            return r.status.get_pose()
+            return self._robot.status.get_pose()
         except Exception:
             return None
 

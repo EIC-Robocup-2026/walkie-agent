@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 from PIL import Image
+from walkie_sdk import WalkieRobot
 
 from .camera import Camera
 from .embedding import Embedding
@@ -32,16 +33,13 @@ class WalkieVision:
 
     def __init__(
         self,
-        camera_device: int = 0,
+        robot: WalkieRobot,
         caption_provider: str = "google",
         embedding_provider: str = "clip",
         detection_provider: str = "sam",
         caption_config: dict[str, Any] | None = None,
         embedding_config: dict[str, Any] | None = None,
         detection_config: dict[str, Any] | None = None,
-        camera_width: int | None = None,
-        camera_height: int | None = None,
-        camera_fps: float | None = None,
     ) -> None:
         """Initialize WalkieVision with camera and providers.
 
@@ -57,12 +55,7 @@ class WalkieVision:
             camera_height: Optional camera height.
             camera_fps: Optional camera FPS.
         """
-        self._camera = Camera(
-            device=camera_device,
-            width=camera_width,
-            height=camera_height,
-            fps=int(camera_fps) if camera_fps is not None else None,
-        )
+        self._camera = Camera(robot=robot)
 
         self._caption = ImageCaption(
             provider=caption_provider,
@@ -96,18 +89,6 @@ class WalkieVision:
     def detection(self) -> ObjectDetection:
         """Get the ObjectDetection instance."""
         return self._detection
-
-    def open(self) -> None:
-        """Open the camera."""
-        self._camera.open()
-
-    def close(self) -> None:
-        """Release the camera."""
-        self._camera.close()
-
-    def is_open(self) -> bool:
-        """Return True if the camera is open."""
-        return self._camera.is_open()
 
     def __enter__(self) -> WalkieVision:
         self.open()

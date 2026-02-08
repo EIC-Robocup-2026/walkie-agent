@@ -11,7 +11,7 @@ from ..middleware import RobotStateMiddleware, SequentialToolCallMiddleware, Tod
 
 checkpointer = InMemorySaver()
 
-def create_walkie_agent(model, walkieAudio: WalkieAudio = None, walkie_vision=None, walkie_db=None, tools=[]):
+def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_db, tools=[]):
     """Create the main Walkie agent with sub-agent tools.
 
     Args:
@@ -24,14 +24,15 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio = None, walkie_vision=No
     Returns:
         The configured Walkie agent
     """
-    tools = create_sub_agents_tools(model, walkie_vision=walkie_vision, walkie_db=walkie_db) + tools
+    robot = walkie_vision._camera._bot
+    tools = create_sub_agents_tools(model, robot=robot, walkie_vision=walkie_vision, walkie_db=walkie_db) + tools
 
     if walkieAudio:
         tools.append(create_speak_tool(walkieAudio))
     tools.append(think)
 
     # Check available tools
-    robot_state = RobotState(vision_enabled=len(tools) > 1)
+    robot_state = RobotState(robot, vision_enabled=True)
 
     agent = create_agent(
         model=model,

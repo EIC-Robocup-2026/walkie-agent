@@ -29,7 +29,7 @@ def get_vision_tools(
     # -------------------------------------------------------------------------
 
     @tool
-    def describe_surroundings() -> str:
+    def describe_surroundings_from_view() -> str:
         """Get a general description of what the robot currently sees.
 
         Use this when the user asks what you see, describe the room, or look around.
@@ -41,7 +41,7 @@ def get_vision_tools(
         return vision.describe()
 
     @tool
-    def classify_scene(categories: str) -> str:
+    def classify_scene_from_view(categories: str) -> str:
         """Classify the current view into one of the given categories (e.g. room types).
 
         Use when you need to label the current place (kitchen, living room, office, etc.).
@@ -65,7 +65,27 @@ def get_vision_tools(
     # -------------------------------------------------------------------------
 
     @tool
-    def detect_object(object_name: str) -> str:
+    def detect_objects_from_view() -> str:
+        """Detect and list all objects currently visible in the camera view.
+
+        Use when the user asks "what objects do you see?" or "list all items in view".
+
+        Returns:
+            str: List of detected objects with their class names and confidence scores.
+        """
+        detected = vision.detect_objects()
+        if not detected:
+            return "No objects detected in current view."
+        lines = [f"Detected {len(detected)} object(s):"]
+        for i, obj in enumerate(detected):
+            class_name = obj.class_name if obj.class_name else "unknown"
+            confidence = obj.confidence if obj.confidence else 0.0
+            lines.append(f"  - Object {i}: {class_name} (confidence: {confidence:.2f})")
+        print(f"Detected objects: {lines}")
+        return "\n".join(lines)
+
+    @tool
+    def find_object_from_view(object_name: str) -> str:
         """Detect a specific object in the current camera view.
 
         Uses segmentation and embedding similarity to find the best-matching object.
@@ -96,11 +116,10 @@ def get_vision_tools(
         return f"Found '{object_name}' in view (match score: {best_sim:.2f}). Region: bbox={obj['bbox']}, area_ratio={obj['area_ratio']:.2%}."
 
     @tool
-    def find_object(object_name: str) -> str:
+    def find_object_from_memory(object_name: str) -> str:
         """Search the database for where a specific object is or was last seen.
 
         Use when the user asks "where is the X?" and you need to query stored locations.
-        Requires the object to have been stored via scan_and_remember or similar.
 
         Args:
             object_name: Name of the object to find (e.g. "coffee mug", "fire extinguisher").
@@ -124,7 +143,7 @@ def get_vision_tools(
         return "\n".join(lines)
 
     @tool
-    def find_scene(scene_description: str) -> str:
+    def find_scene_from_memory(scene_description: str) -> str:
         """Search the database for a scene or location matching the description.
 
         Use when the user asks "where is the kitchen?" or "find a room with a whiteboard".
@@ -150,69 +169,69 @@ def get_vision_tools(
         print(f"Found {len(hits)} scene(s) matching '{scene_description}': {lines}")
         return "\n".join(lines)
 
-    @tool
-    def scan_and_remember(
-        x: float = 0.0,
-        y: float = 0.0,
-        z: float = 0.0,
-        heading: float = 0.0,
-    ) -> str:
-        """Scan the current view and store detected objects and scene in the database.
+    # @tool
+    # def scan_and_remember(
+    #     x: float = 0.0,
+    #     y: float = 0.0,
+    #     z: float = 0.0,
+    #     heading: float = 0.0,
+    # ) -> str:
+    #     """Scan the current view and store detected objects and scene in the database.
 
-        Use when the user wants to remember this location or build a map.
-        If the robot knows its current pose, pass x, y, z, heading so locations are stored correctly.
+    #     Use when the user wants to remember this location or build a map.
+    #     If the robot knows its current pose, pass x, y, z, heading so locations are stored correctly.
 
-        Args:
-            x: Current robot x position (meters). Default 0.
-            y: Current robot y position (meters). Default 0.
-            z: Current robot z position (meters). Default 0.
-            heading: Current robot heading (radians). Default 0.
+    #     Args:
+    #         x: Current robot x position (meters). Default 0.
+    #         y: Current robot y position (meters). Default 0.
+    #         z: Current robot z position (meters). Default 0.
+    #         heading: Current robot heading (radians). Default 0.
 
-        Returns:
-            str: Summary of what was stored (scene + number of objects).
-        """
-        if db is None:
-            return "Database not available. Cannot store scene or objects."
-        scene_label, _ = vision.classify_scene(
-            ["kitchen", "living room", "bedroom", "bathroom", "office", "dining room", "corridor", "other"]
-        )
-        scene_id = f"scene_{uuid.uuid4().hex[:8]}"
-        full_image = vision.capture()
-        scene_emb = vision.embed_image(full_image)
-        db.upsert_scene(
-            SceneRecord(
-                scene_id=scene_id,
-                scene_xyz=[x, y, z],
-                scene_embedding=scene_emb,
-                heading=heading,
-            )
-        )
-        objs = vision.detect_and_embed_objects()
-        stored = 0
-        for i, o in enumerate(objs):
-            print(f"Storing object {i} of {len(objs)}: {o['bbox']}, area_ratio={o['area_ratio']:.2%}")
-            obj_id = f"obj_{scene_id}_{i}"
-            db.upsert_object(
-                ObjectRecord(
-                    object_id=obj_id,
-                    object_xyz=[x, y, z],
-                    object_embedding=o["embedding"],
-                    heading=heading,
-                    scene_id=scene_id,
-                    class_id=o.get("class_id"),
-                    class_name=o.get("class_name"),
-                )
-            )
-            stored += 1
-        print(f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}.")
-        return f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}."
+    #     Returns:
+    #         str: Summary of what was stored (scene + number of objects).
+    #     """
+    #     if db is None:
+    #         return "Database not available. Cannot store scene or objects."
+    #     scene_label, _ = vision.classify_scene(
+    #         ["kitchen", "living room", "bedroom", "bathroom", "office", "dining room", "corridor", "other"]
+    #     )
+    #     scene_id = f"scene_{uuid.uuid4().hex[:8]}"
+    #     full_image = vision.capture()
+    #     scene_emb = vision.embed_image(full_image)
+    #     db.upsert_scene(
+    #         SceneRecord(
+    #             scene_id=scene_id,
+    #             scene_xyz=[x, y, z],
+    #             scene_embedding=scene_emb,
+    #             heading=heading,
+    #         )
+    #     )
+    #     objs = vision.detect_and_embed_objects()
+    #     stored = 0
+    #     for i, o in enumerate(objs):
+    #         print(f"Storing object {i} of {len(objs)}: {o['bbox']}, area_ratio={o['area_ratio']:.2%}")
+    #         obj_id = f"obj_{scene_id}_{i}"
+    #         db.upsert_object(
+    #             ObjectRecord(
+    #                 object_id=obj_id,
+    #                 object_xyz=[x, y, z],
+    #                 object_embedding=o["embedding"],
+    #                 heading=heading,
+    #                 scene_id=scene_id,
+    #                 class_id=o.get("class_id"),
+    #                 class_name=o.get("class_name"),
+    #             )
+    #         )
+    #         stored += 1
+    #     print(f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}.")
+    #     return f"Stored scene '{scene_label}' (id={scene_id}) and {stored} object(s) at position (x={x}, y={y}, z={z}), heading={heading}."
 
     # -------------------------------------------------------------------------
     # People (caption-based for now)
     # -------------------------------------------------------------------------
 
     @tool
-    def detect_people() -> str:
+    def detect_people_from_view() -> str:
         """Detect and describe all people currently visible in the camera view.
 
         Uses vision model to describe how many people and their approximate poses/positions.
@@ -229,7 +248,7 @@ def get_vision_tools(
         return vision.describe(prompt=prompt)
 
     @tool
-    def recognize_pose(person_id: str) -> str:
+    def recognize_pose_from_view(person_id: str) -> str:
         """Analyze the pose of a specific person (e.g. person_1, person_2 from detect_people).
 
         Use after detect_people when the user asks for more detail about one person's pose.
@@ -248,41 +267,7 @@ def get_vision_tools(
         return vision.describe(prompt=prompt)
 
     @tool
-    def recognize_face(person_id: str) -> str:
-        """Describe the face of a specific person (identity/recognition not yet supported).
-
-        Use when the user asks "who is that?" or "do you recognize them?".
-        Face recognition against a stored database is not implemented yet; returns a description only.
-
-        Args:
-            person_id: Identifier like "person_1" or "the person on the left".
-
-        Returns:
-            str: Face description or message that recognition is not available.
-        """
-        prompt = (
-            f"Describe the face of {person_id} (or the person referred to): "
-            "visible features, approximate age, expression. Do not guess identity."
-        )
-        print(f"Describing face: {prompt}")
-        return vision.describe(prompt=prompt)
-
-    @tool
-    def get_people_coordinates() -> str:
-        """Get approximate positions of people in the current view (left/center/right, distance).
-
-        Returns:
-            str: Text description of where people are relative to the camera.
-        """
-        prompt = (
-            "List each person visible and their approximate position: "
-            "left/center/right in frame, and approximate distance (close, medium, far). One line per person."
-        )
-        print(f"Describing people coordinates: {prompt}")
-        return vision.describe(prompt=prompt)
-
-    @tool
-    def find_person(name: str) -> str:
+    def find_person_from_memory(name: str) -> str:
         """Search for a person by name using the database.
 
         Use when the user asks "where is John?" if you have a people database.
@@ -305,15 +290,14 @@ def get_vision_tools(
         )
 
     return [
-        describe_surroundings,
-        classify_scene,
-        detect_object,
-        find_object,
-        find_scene,
-        scan_and_remember,
-        detect_people,
-        recognize_pose,
-        recognize_face,
-        get_people_coordinates,
-        find_person,
+        describe_surroundings_from_view,
+        classify_scene_from_view,
+        detect_objects_from_view,
+        find_object_from_view,
+        find_object_from_memory,
+        find_scene_from_memory,
+        # scan_and_remember,
+        detect_people_from_view,
+        recognize_pose_from_view,
+        find_person_from_memory,
     ]

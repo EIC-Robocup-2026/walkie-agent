@@ -26,7 +26,7 @@ def main():
     objects = [
         ObjectRecord(
             object_id=f"obj_{uuid.uuid4().hex[:8]}",
-            object_xyz=[2.0, 3.0, 0.0],
+            object_xyz=[1.0, 0.5, 0.0],
             object_embedding=vision.embed_text("water bottle"),
             heading=0.0,
             scene_id=scene_id,
@@ -35,7 +35,7 @@ def main():
         ),
         ObjectRecord(
             object_id=f"obj_{uuid.uuid4().hex[:8]}",
-            object_xyz=[1.0, -2.0, 0.0],
+            object_xyz=[-1.0, 0.0, 0.0],
             object_embedding=vision.embed_text("person"),
             heading=0.0,
             scene_id=scene_id,
