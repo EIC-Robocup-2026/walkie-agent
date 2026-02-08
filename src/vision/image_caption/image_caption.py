@@ -51,6 +51,10 @@ class ImageCaption:
         """Get the underlying provider instance."""
         return self._provider
 
+    def load_model(self) -> None:
+        """Pre-load the provider's model weights into memory."""
+        self._provider.load_model()
+
     def caption(
         self,
         image: Union[bytes, Image.Image],

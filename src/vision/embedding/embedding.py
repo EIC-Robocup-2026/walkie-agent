@@ -40,6 +40,10 @@ class Embedding:
         """Underlying provider instance."""
         return self._provider
 
+    def load_model(self) -> None:
+        """Pre-load the provider's model weights into memory."""
+        self._provider.load_model()
+
     def embed_image(self, image: Image.Image) -> list[float]:
         """Compute embedding for an image."""
         return self._provider.embed_image(image)

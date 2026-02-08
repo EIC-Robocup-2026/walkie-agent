@@ -35,6 +35,10 @@ class CLIPEmbeddingProvider(EmbeddingProvider):
         self._processor: CLIPProcessor | None = None
         self._dim: int | None = None
 
+    def load_model(self) -> None:
+        """Pre-load CLIP model and processor into memory."""
+        self._ensure_loaded()
+
     def _ensure_loaded(self) -> None:
         """Lazy-load model and processor on first use."""
         if self._model is not None:

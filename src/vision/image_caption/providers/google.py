@@ -43,6 +43,9 @@ class GoogleImageCaptionProvider(ImageCaptionProvider):
         # 3. Application Default Credentials (ADC)
         self.client = genai.Client(http_options=HttpOptions(api_version=api_version))
 
+    def load_model(self) -> None:
+        """No-op for Google provider (API-based, no local model to load)."""
+
     def _image_to_part(self, image: Union[bytes, Image.Image]) -> Part:
         """Convert image to google-genai Part.
         

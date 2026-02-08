@@ -40,6 +40,10 @@ class ObjectDetection:
         """Underlying provider instance."""
         return self._provider
 
+    def load_model(self) -> None:
+        """Pre-load the provider's model weights into memory."""
+        self._provider.load_model()
+
     def detect(self, image: Image.Image) -> list[DetectedObject]:
         """Detect objects in an image."""
         return self._provider.detect(image)

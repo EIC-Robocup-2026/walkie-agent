@@ -35,6 +35,17 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         self.default_prompt = config.get("default_prompt", self.DEFAULT_PROMPT)
         self.max_new_tokens = config.get("max_new_tokens", self.DEFAULT_MAX_NEW_TOKENS)
 
+        self.processor: PaliGemmaProcessor | None = None
+        self.model: PaliGemmaForConditionalGeneration | None = None
+
+    def load_model(self) -> None:
+        """Pre-load PaliGemma model and processor into memory."""
+        self._ensure_loaded()
+
+    def _ensure_loaded(self) -> None:
+        """Lazy-load PaliGemma model and processor on first use."""
+        if self.model is not None:
+            return
         self.processor = PaliGemmaProcessor.from_pretrained(self.model_name)
         self.model = (
             PaliGemmaForConditionalGeneration.from_pretrained(
@@ -66,6 +77,8 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         Returns:
             The generated caption/description as a string.
         """
+        self._ensure_loaded()
+        assert self.processor is not None and self.model is not None
         if prompt is None:
             prompt = self.default_prompt
         
@@ -103,6 +116,9 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         """
         if not images:
             return []
+
+        self._ensure_loaded()
+        assert self.processor is not None and self.model is not None
 
         if prompts is None:
             prompt = self.default_prompt

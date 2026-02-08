@@ -42,20 +42,21 @@ class WalkieVision:
         caption_config: dict[str, Any] | None = None,
         embedding_config: dict[str, Any] | None = None,
         detection_config: dict[str, Any] | None = None,
+        preload: bool = False,
     ) -> None:
         """Initialize WalkieVision with camera and providers.
 
         Args:
-            camera_device: Camera device index.
+            robot: WalkieRobot instance for camera access.
             caption_provider: Image captioning provider (e.g., "google").
             embedding_provider: Embedding provider (e.g., "clip").
             detection_provider: Object detection provider (e.g., "sam").
             caption_config: Config for ImageCaption.
             embedding_config: Config for Embedding.
             detection_config: Config for ObjectDetection.
-            camera_width: Optional camera width.
-            camera_height: Optional camera height.
-            camera_fps: Optional camera FPS.
+            preload: If True, eagerly load all provider model weights into
+                memory during initialization. This avoids cold-start latency
+                on the first inference call.
         """
         self._camera = Camera(robot=robot) if robot else None
 
@@ -71,6 +72,9 @@ class WalkieVision:
             provider=detection_provider,
             **(detection_config or {}),
         )
+
+        if preload:
+            self.preload_models()
 
     @property
     def camera(self) -> Camera:
@@ -91,6 +95,17 @@ class WalkieVision:
     def detection(self) -> ObjectDetection:
         """Get the ObjectDetection instance."""
         return self._detection
+
+    def preload_models(self) -> None:
+        """Eagerly load all provider model weights into memory.
+
+        Call this to avoid cold-start latency on the first inference call.
+        Providers that are already loaded or API-based (no local model) will
+        no-op safely.
+        """
+        self._caption.load_model()
+        self._embedding.load_model()
+        self._detection.load_model()
 
     def __enter__(self) -> WalkieVision:
         self.open()

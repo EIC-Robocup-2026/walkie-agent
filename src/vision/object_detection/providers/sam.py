@@ -46,9 +46,9 @@ class SAMObjectDetectionProvider(ObjectDetectionProvider):
                 - stability_score_thresh: SAM threshold (default: 0.95)
                 - min_mask_region_area: SAM min region (default: 200)
         """
-        checkpoint_path = config.get("checkpoint_path", self.DEFAULT_CHECKPOINT)
-        checkpoint_url = config.get("checkpoint_url", self.DEFAULT_URL)
-        _download_file(checkpoint_url, checkpoint_path)
+        self._config = config
+        self._checkpoint_path = config.get("checkpoint_path", self.DEFAULT_CHECKPOINT)
+        self._checkpoint_url = config.get("checkpoint_url", self.DEFAULT_URL)
 
         device = config.get("device")
         if device is None:
@@ -60,21 +60,34 @@ class SAMObjectDetectionProvider(ObjectDetectionProvider):
         self._max_objects = int(config.get("max_objects", 10))
         self._crop_padding = int(config.get("crop_padding", 50))
 
-        sam = sam_model_registry["vit_b"](checkpoint=checkpoint_path)
-        sam.to(device)
+        self._mask_generator: SamAutomaticMaskGenerator | None = None
+        self._model_name = "sam_vit_b"
+
+    def load_model(self) -> None:
+        """Pre-load SAM model weights and mask generator into memory."""
+        self._ensure_loaded()
+
+    def _ensure_loaded(self) -> None:
+        """Lazy-load SAM model and mask generator on first use."""
+        if self._mask_generator is not None:
+            return
+        _download_file(self._checkpoint_url, self._checkpoint_path)
+        sam = sam_model_registry["vit_b"](checkpoint=self._checkpoint_path)
+        sam.to(self._device)
         self._mask_generator = SamAutomaticMaskGenerator(
             model=sam,
-            points_per_side=config.get("points_per_side", 32),
-            pred_iou_thresh=config.get("pred_iou_thresh", 0.90),
-            stability_score_thresh=config.get("stability_score_thresh", 0.95),
+            points_per_side=self._config.get("points_per_side", 32),
+            pred_iou_thresh=self._config.get("pred_iou_thresh", 0.90),
+            stability_score_thresh=self._config.get("stability_score_thresh", 0.95),
             crop_n_layers=1,
             crop_n_points_downscale_factor=2,
-            min_mask_region_area=config.get("min_mask_region_area", 200),
+            min_mask_region_area=self._config.get("min_mask_region_area", 200),
         )
-        self._model_name = "sam_vit_b"
 
     def detect(self, image: Image.Image) -> list[DetectedObject]:
         """Generate masks, filter by area, return cropped objects."""
+        self._ensure_loaded()
+        assert self._mask_generator is not None
         img_rgb = np.array(image)
         if img_rgb.ndim == 2:
             img_rgb = np.stack([img_rgb] * 3, axis=-1)

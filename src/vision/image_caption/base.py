@@ -50,6 +50,13 @@ class ImageCaptionProvider(ABC):
         """
         return [self.caption(img, prompts) for img in images]
 
+    def load_model(self) -> None:
+        """Pre-load model weights into memory.
+
+        Default implementation is a no-op. Override in providers that use
+        lazy loading so that ``load_model()`` can be called eagerly.
+        """
+
     @abstractmethod
     def get_supported_formats(self) -> list[str]:
         """Get list of supported image formats.

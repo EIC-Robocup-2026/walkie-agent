@@ -62,6 +62,13 @@ class EmbeddingProvider(ABC):
         dot = sum(a * b for a, b in zip(embedding_a, embedding_b))
         return max(-1.0, min(1.0, dot))
 
+    def load_model(self) -> None:
+        """Pre-load model weights into memory.
+
+        Default implementation is a no-op. Override in providers that use
+        lazy loading so that ``load_model()`` can be called eagerly.
+        """
+
     @abstractmethod
     def get_embedding_dim(self) -> int:
         """Return the dimension of embedding vectors."""

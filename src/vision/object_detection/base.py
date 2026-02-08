@@ -35,6 +35,13 @@ class ObjectDetectionProvider(ABC):
         """
         pass
 
+    def load_model(self) -> None:
+        """Pre-load model weights into memory.
+
+        Default implementation is a no-op. Override in providers that use
+        lazy loading so that ``load_model()`` can be called eagerly.
+        """
+
     @abstractmethod
     def get_model_name(self) -> str:
         """Return a short model name for logging."""

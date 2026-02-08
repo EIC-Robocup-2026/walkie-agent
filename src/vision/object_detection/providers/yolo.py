@@ -68,11 +68,7 @@ class YOLOObjectDetectionProvider(ObjectDetectionProvider):
                 - min_area_ratio: Filter out boxes smaller than this (default: 0.0005)
                 - max_area_ratio: Filter out boxes larger than this (default: 0.95)
         """
-        _ensure_ultralytics()
-        from ultralytics import YOLO
-
-        model_path = _get_model_path(config)
-        self._model = YOLO(model_path)
+        self._config = config
 
         device = config.get("device")
         if device is None:
@@ -86,10 +82,27 @@ class YOLOObjectDetectionProvider(ObjectDetectionProvider):
         self._crop_padding = int(config.get("crop_padding", 10))
         self._min_area_ratio = float(config.get("min_area_ratio", 0.0005))
         self._max_area_ratio = float(config.get("max_area_ratio", 0.95))
+        self._model = None
         self._model_name = "yolo11n_object365"
+
+    def load_model(self) -> None:
+        """Pre-load YOLO model weights into memory."""
+        self._ensure_loaded()
+
+    def _ensure_loaded(self) -> None:
+        """Lazy-load YOLO model on first use."""
+        if self._model is not None:
+            return
+        _ensure_ultralytics()
+        from ultralytics import YOLO
+
+        model_path = _get_model_path(self._config)
+        self._model = YOLO(model_path)
 
     def detect(self, image: Image.Image) -> list[DetectedObject]:
         """Run YOLO inference and return detections as DetectedObject list."""
+        self._ensure_loaded()
+        assert self._model is not None
         img_rgb = np.array(image)
         if img_rgb.ndim == 2:
             img_rgb = np.stack([img_rgb] * 3, axis=-1)
