@@ -30,6 +30,25 @@ class ImageCaptionProvider(ABC):
         """
         pass
 
+    def caption_batch(
+        self,
+        images: list[Union[bytes, Image.Image]],
+        prompt: str | None = None,
+    ) -> list[str]:
+        """Generate captions for multiple images.
+        
+        Default implementation calls caption() for each image. Override for
+        provider-specific batch processing (e.g. batched inference).
+        
+        Args:
+            images: List of images to caption (bytes or PIL Image).
+            prompt: Optional prompt; if None, uses the provider's default prompt.
+            
+        Returns:
+            List of caption strings, one per image, in the same order as images.
+        """
+        return [self.caption(img, prompt) for img in images]
+
     @abstractmethod
     def get_supported_formats(self) -> list[str]:
         """Get list of supported image formats.

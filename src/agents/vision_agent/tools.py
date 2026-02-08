@@ -38,7 +38,8 @@ def get_vision_tools(
             str: A description of the current scene and surroundings.
         """
         print(f"Describing surroundings")
-        return vision.describe()
+        image = vision.capture()
+        return vision.describe(image)
 
     @tool
     def classify_scene_from_view(categories: str) -> str:
@@ -56,7 +57,8 @@ def get_vision_tools(
         cat_list = [c.strip() for c in categories.split(",") if c.strip()]
         if not cat_list:
             return "Error: Provide at least one category (e.g. 'kitchen, living room')."
-        name, conf = vision.classify_scene(cat_list)
+        image = vision.capture()
+        name, conf = vision.classify_scene(image, cat_list)
         print(f"Classified scene as: {name} (confidence: {conf:.2f})")
         return f"Classified as: {name} (confidence: {conf:.2f})"
 
@@ -73,7 +75,8 @@ def get_vision_tools(
         Returns:
             str: List of detected objects with their class names and confidence scores.
         """
-        detected = vision.detect_objects()
+        image = vision.capture()
+        detected = vision.detect_objects(image)
         if not detected:
             return "No objects detected in current view."
         lines = [f"Detected {len(detected)} object(s):"]
@@ -97,8 +100,9 @@ def get_vision_tools(
         Returns:
             str: Whether the object was found and a short description, or "not found".
         """
+        image = vision.capture()
         query_emb = vision.embed_text(object_name)
-        objs = vision.detect_and_embed_objects()
+        objs = vision.detect_and_embed_objects(image)
         if not objs:
             return f"No objects detected in current view. Cannot confirm '{object_name}'."
         best_sim = -1.0
@@ -192,11 +196,11 @@ def get_vision_tools(
     #     """
     #     if db is None:
     #         return "Database not available. Cannot store scene or objects."
+    #     full_image = vision.capture()
     #     scene_label, _ = vision.classify_scene(
-    #         ["kitchen", "living room", "bedroom", "bathroom", "office", "dining room", "corridor", "other"]
+    #         full_image, ["kitchen", "living room", "bedroom", "bathroom", "office", "dining room", "corridor", "other"]
     #     )
     #     scene_id = f"scene_{uuid.uuid4().hex[:8]}"
-    #     full_image = vision.capture()
     #     scene_emb = vision.embed_image(full_image)
     #     db.upsert_scene(
     #         SceneRecord(
@@ -206,7 +210,7 @@ def get_vision_tools(
     #             heading=heading,
     #         )
     #     )
-    #     objs = vision.detect_and_embed_objects()
+    #     objs = vision.detect_and_embed_objects(full_image)
     #     stored = 0
     #     for i, o in enumerate(objs):
     #         print(f"Storing object {i} of {len(objs)}: {o['bbox']}, area_ratio={o['area_ratio']:.2%}")
@@ -245,7 +249,8 @@ def get_vision_tools(
             "and what they are doing (standing, sitting, waving, etc.). Be concise."
         )
         print(f"Describing people: {prompt}")
-        return vision.describe(prompt=prompt)
+        image = vision.capture()
+        return vision.describe(image, prompt=prompt)
 
     @tool
     def recognize_pose_from_view(person_id: str) -> str:
@@ -264,7 +269,8 @@ def get_vision_tools(
             "Describe their body pose in detail: standing/sitting, arm positions, facing direction, gesture if any."
         )
         print(f"Describing pose: {prompt}")
-        return vision.describe(prompt=prompt)
+        image = vision.capture()
+        return vision.describe(image, prompt=prompt)
 
     @tool
     def find_person_from_memory(name: str) -> str:

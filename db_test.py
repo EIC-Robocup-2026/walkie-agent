@@ -1,14 +1,43 @@
+"""Test WalkieVectorDB: upsert scene + objects from WalkieVision, then run queries.
+
+Run from project root:
+    uv run python db_test.py
+
+Uses a separate persist dir (chroma_db_test) so the main DB is untouched.
+"""
+
 from dotenv import load_dotenv
-from src.db import WalkieVectorDB, ObjectRecord, SceneRecord, PersonRecordb
+
 load_dotenv()
 
+from src.db import WalkieVectorDB, ObjectRecord, SceneRecord
+from src.vision import WalkieVision
+import cv2
+
+
 def main():
-    db = WalkieVectorDB()
-    db.add_object(ObjectRecord(id="1", name="Object 1", description="Object 1 description"))
-    db.add_scene(SceneRecord(id="1", name="Scene 1", description="Scene 1 description"))
-    db.add_person(PersonRecord(id="1", name="Person 1", description="Person 1 description"))
-    move_absolute.invoke({"x":1, "y":1, "heading":0.0})
-    # move_relative.invoke({"x":1, "y":0, "heading":0.0})
+    persist_dir = "chroma_db_test"
+
+    print("WalkieVectorDB test")
+    print("=" * 60)
+
+    vision = WalkieVision(
+        caption_provider="paligemma",
+        embedding_provider="clip",
+        detection_provider="yolo",
+    )
+
+    try:
+        img = cv2.imread("test.jpg")
+        objects = vision.detect_objects(img)
+        for obj in objects:
+            print(obj)
+    except Exception as e:
+        print(f"Error: {e}")
+        raise e
+
+
+    print("\nDone. DB persisted under", persist_dir)
 
 
 if __name__ == "__main__":

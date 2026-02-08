@@ -5,13 +5,15 @@ Usage:
 
     vision = WalkieVision(camera_device=0)
     vision.open()
-    desc = vision.describe()
-    objects = vision.detect_objects()
+    image = vision.capture()
+    desc = vision.describe(image)
+    objects = vision.detect_objects(image)
     vision.close()
 
     # Or with context manager
     with WalkieVision() as vision:
-        room = vision.classify_scene(["kitchen", "living room", "bedroom"])
+        image = vision.capture()
+        room = vision.classify_scene(image, ["kitchen", "living room", "bedroom"])
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ class WalkieVision:
 
     def __init__(
         self,
-        robot: WalkieRobot,
+        robot: WalkieRobot | None = None,
         caption_provider: str = "google",
         embedding_provider: str = "clip",
         detection_provider: str = "sam",
@@ -55,7 +57,7 @@ class WalkieVision:
             camera_height: Optional camera height.
             camera_fps: Optional camera FPS.
         """
-        self._camera = Camera(robot=robot)
+        self._camera = Camera(robot=robot) if robot else None
 
         self._caption = ImageCaption(
             provider=caption_provider,
@@ -99,28 +101,46 @@ class WalkieVision:
 
     def capture(self) -> Image.Image:
         """Capture a single frame as PIL Image (RGB)."""
+        if self._camera is None:
+            raise RuntimeError("Camera is not initialized. Please provide a robot instance.")
         return self._camera.capture_pil()
 
-    def describe(self, prompt: str | None = None) -> str:
-        """Capture current view and return a text description (caption)."""
-        image = self.capture()
+    def describe(self, image: Image.Image, prompt: str | None = None) -> str:
+        """Return a text description (caption) of the given image.
+
+        Args:
+            image: PIL Image to describe.
+            prompt: Optional prompt to guide the captioning.
+
+        Returns:
+            Caption string.
+        """
         return self._caption.caption(image, prompt=prompt)
 
-    def detect_objects(self) -> list[DetectedObject]:
-        """Capture current view and detect/segment objects."""
-        image = self.capture()
+    def detect_objects(self, image: Image.Image) -> list[DetectedObject]:
+        """Detect/segment objects in the given image.
+
+        Args:
+            image: PIL Image to run detection on.
+
+        Returns:
+            List of DetectedObject instances.
+        """
         return self._detection.detect(image)
 
     def detect_and_embed_objects(
         self,
+        image: Image.Image,
     ) -> list[dict[str, Any]]:
-        """Capture, detect objects, and compute CLIP embedding for each crop.
+        """Detect objects in the given image and compute CLIP embedding for each crop.
+
+        Args:
+            image: PIL Image to run detection and embedding on.
 
         Returns:
             List of dicts with keys: object_index, bbox, area_ratio, cropped_image,
             embedding, and optionally caption.
         """
-        image = self.capture()
         detected = self._detection.detect(image)
         results: list[dict[str, Any]] = []
         for i, obj in enumerate(detected):
@@ -151,17 +171,21 @@ class WalkieVision:
 
     def classify_scene(
         self,
+        image: Image.Image,
         categories: list[str],
     ) -> tuple[str, float]:
-        """Classify current view into one of the given categories (e.g. room types).
+        """Classify the given image into one of the given categories (e.g. room types).
 
         Uses CLIP text-image similarity. Categories should be short labels
         (e.g. ["kitchen", "living room", "bedroom"]).
 
+        Args:
+            image: PIL Image to classify.
+            categories: List of category labels.
+
         Returns:
             (best_category_name, confidence in [0, 1]).
         """
-        image = self.capture()
         img_emb = self._embedding.embed_image(image)
         text_embs = self._embedding.embed_texts(categories)
         best_idx = 0
@@ -175,15 +199,3 @@ class WalkieVision:
         # we use a simple linear scaling from [-1,1] to [0,1]: (sim + 1) / 2
         confidence = (best_sim + 1.0) / 2.0
         return categories[best_idx], confidence
-
-    @staticmethod
-    def list_cameras(max_check: int = 10) -> list[dict]:
-        """List available camera devices."""
-        from .camera import list_cameras
-        return list_cameras(max_check=max_check)
-
-    @staticmethod
-    def print_cameras(max_check: int = 10) -> None:
-        """Print available cameras."""
-        from .camera import print_cameras
-        print_cameras(max_check=max_check)

@@ -10,10 +10,12 @@ from typing import Any
 
 from ..base import ImageCaptionProvider
 from .google import GoogleImageCaptionProvider
+from .paligemma import PaliGemmaImageCaptionProvider
 
 # Provider registry - add new providers here
 PROVIDERS: dict[str, type[ImageCaptionProvider]] = {
     "google": GoogleImageCaptionProvider,
+    "paligemma": PaliGemmaImageCaptionProvider,
 }
 
 
