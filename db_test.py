@@ -30,8 +30,12 @@ def main():
     try:
         img = cv2.imread("test.jpg")
         objects = vision.detect_objects(img)
-        for obj in objects:
-            print(obj)
+        cropped_imgs = [obj.cropped_image for obj in objects]
+        prompts = [f"Describe the {obj.class_name}" for obj in objects]
+        print(f"prompts: {prompts}")
+        descriptions = vision.caption_batch(cropped_imgs, prompts=prompts)
+        for desc, obj in zip(descriptions, objects):
+            print(f"Object: {obj}, Description: {desc}" )
     except Exception as e:
         print(f"Error: {e}")
         raise e

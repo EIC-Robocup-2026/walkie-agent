@@ -70,18 +70,19 @@ class ImageCaption:
     def caption_batch(
         self,
         images: list[Union[bytes, Image.Image]],
-        prompt: str | None = None,
+        prompts: list[str] | None = None,
     ) -> list[str]:
         """Generate captions for multiple images.
         
         Args:
             images: List of images to caption (bytes or PIL Image).
-            prompt: Optional prompt; if None, uses the provider's default prompt.
+            prompts: Optional list of prompts; if None, uses the provider's default prompt.
+                     If provided, must be the same length as images.
             
         Returns:
             List of caption strings, one per image, in the same order as images.
         """
-        return self._provider.caption_batch(images, prompt)
+        return self._provider.caption_batch(images, prompts)
 
     def get_supported_formats(self) -> list[str]:
         """Get list of supported image formats for current provider."""

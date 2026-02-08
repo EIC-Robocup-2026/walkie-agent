@@ -28,18 +28,18 @@ def get_vision_tools(
     # Scene description and classification
     # -------------------------------------------------------------------------
 
-    @tool
-    def describe_surroundings_from_view() -> str:
-        """Get a general description of what the robot currently sees.
+    # @tool
+    # def describe_surroundings_from_view() -> str:
+    #     """Get a general description of what the robot currently sees.
 
-        Use this when the user asks what you see, describe the room, or look around.
+    #     Use this when the user asks what you see, describe the room, or look around.
 
-        Returns:
-            str: A description of the current scene and surroundings.
-        """
-        print(f"Describing surroundings")
-        image = vision.capture()
-        return vision.describe(image)
+    #     Returns:
+    #         str: A description of the current scene and surroundings.
+    #     """
+    #     print(f"Describing surroundings")
+    #     image = vision.capture()
+    #     return vision.caption(image)
 
     @tool
     def classify_scene_from_view(categories: str) -> str:
@@ -75,16 +75,21 @@ def get_vision_tools(
         Returns:
             str: List of detected objects with their class names and confidence scores.
         """
+        CONFIDENCE_THRESHOLD = 0.4
         image = vision.capture()
-        detected = vision.detect_objects(image)
-        if not detected:
+        objects = vision.detect_objects(image)
+        if not objects:
             return "No objects detected in current view."
-        lines = [f"Detected {len(detected)} object(s):"]
-        for i, obj in enumerate(detected):
+        descriptions = vision.caption_batch([obj.cropped_image for obj in objects])
+        lines = [f"Detected {len(objects)} object(s):"]
+        for i, (obj, desc) in enumerate(zip(objects, descriptions)):
             class_name = obj.class_name if obj.class_name else "unknown"
             confidence = obj.confidence if obj.confidence else 0.0
-            lines.append(f"  - Object {i}: {class_name} (confidence: {confidence:.2f})")
-        print(f"Detected objects: {lines}")
+            if confidence < CONFIDENCE_THRESHOLD:
+                continue
+            lines.append(f"  - Object {i}: {class_name} (confidence: {confidence:.2f}) - Description: {desc}")
+        # print(f"Detected objects: {lines}")
+        print("\n".join(lines))
         return "\n".join(lines)
 
     @tool
@@ -250,7 +255,7 @@ def get_vision_tools(
         )
         print(f"Describing people: {prompt}")
         image = vision.capture()
-        return vision.describe(image, prompt=prompt)
+        return vision.caption(image, prompt=prompt)
 
     @tool
     def recognize_pose_from_view(person_id: str) -> str:
@@ -270,7 +275,7 @@ def get_vision_tools(
         )
         print(f"Describing pose: {prompt}")
         image = vision.capture()
-        return vision.describe(image, prompt=prompt)
+        return vision.caption(image, prompt=prompt)
 
     @tool
     def find_person_from_memory(name: str) -> str:
@@ -296,14 +301,14 @@ def get_vision_tools(
         )
 
     return [
-        describe_surroundings_from_view,
+        # describe_surroundings_from_view,
         classify_scene_from_view,
         detect_objects_from_view,
-        find_object_from_view,
+        # find_object_from_view,
         find_object_from_memory,
         find_scene_from_memory,
         # scan_and_remember,
-        detect_people_from_view,
-        recognize_pose_from_view,
-        find_person_from_memory,
+        # detect_people_from_view,
+        # recognize_pose_from_view,
+        # find_person_from_memory,
     ]

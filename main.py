@@ -11,6 +11,10 @@ from src.db import WalkieVectorDB
 
 load_dotenv()
 
+# Track people until the person say Thank you. go back to the starting point.
+# VQA about the current camera view and DB.
+# Grab an object and put it somewhere.
+
 model = ChatOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
     temperature=0,
@@ -35,10 +39,9 @@ robot = WalkieRobot(
 )
 
 walkie_audio = WalkieAudio(
-    microphone_device=13,
+    # microphone_device=13,
     stt_provider="whisper",
     tts_provider="elevenlabs",
-    # microphone_device=12,
     stt_config={
         "model_name": "base",
         "device": "cuda",
@@ -55,7 +58,7 @@ for mic in walkie_audio.list_microphones():
 # Initialize vision (camera + caption + embedding + object detection) and optional vector DB
 walkie_vision = WalkieVision(
     robot,
-    caption_provider="google",
+    caption_provider="paligemma",
     embedding_provider="clip",
     detection_provider="yolo",
 )
@@ -83,16 +86,16 @@ def main():
 
     
         
-    # result = run_agent("From the current view, how many chairs are there?")
+    result = run_agent("Can you describe what you see in the current view?")
     
-    # print(result)
+    print(result)
     
-    while True:
-        print("Recording...")
-        text = walkie_audio.listen()
-        if text == "":
-            continue
-        print(f"Transcription: {text}")
+    # while True:
+    #     print("Recording...")
+    #     text = walkie_audio.listen()
+    #     if text == "":
+    #         continue
+    #     print(f"Transcription: {text}")
         
         # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
         # print(styled_text)

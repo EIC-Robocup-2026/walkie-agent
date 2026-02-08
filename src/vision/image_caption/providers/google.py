@@ -121,18 +121,23 @@ class GoogleImageCaptionProvider(ImageCaptionProvider):
     def caption_batch(
         self,
         images: list[Union[bytes, Image.Image]],
-        prompt: str | None = None,
+        prompts: list[str] | None = None,
     ) -> list[str]:
         """Generate captions for multiple images via sequential API calls.
         
         Args:
             images: List of images to caption (bytes or PIL Image).
-            prompt: Optional prompt; if None, uses default_prompt.
+            prompts: Optional list of prompts; if None, uses default_prompt.
+                     If provided, must be the same length as images.
             
         Returns:
             List of caption strings, one per image, in the same order as images.
         """
-        return [self.caption(img, prompt) for img in images]
+        if prompts is None:
+            prompts = [self.default_prompt] * len(images)
+        if len(prompts) != len(images):
+            raise ValueError("Number of prompts must match number of images")
+        return [self.caption(img, prompt) for img, prompt in zip(images, prompts)]
 
     def get_supported_formats(self) -> list[str]:
         """Get list of supported image formats.

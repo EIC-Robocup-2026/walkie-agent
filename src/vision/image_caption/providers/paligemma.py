@@ -68,10 +68,10 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         """
         if prompt is None:
             prompt = self.default_prompt
-
+        
         pil_image = self._to_pil(image)
         inputs = self.processor(
-            text=prompt,
+            text="<image>" + prompt,
             images=pil_image,
             return_tensors="pt",
         ).to(self.device)
@@ -89,13 +89,14 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
     def caption_batch(
         self,
         images: list[Union[bytes, Image.Image]],
-        prompt: str | None = None,
+        prompts: list[str] | None = None,
     ) -> list[str]:
         """Generate captions for multiple images in a single batched forward pass.
         
         Args:
             images: List of images to caption (bytes or PIL Image).
-            prompt: Optional task prompt; if None, uses default_prompt.
+            prompts: Optional list of task prompts; if None, uses default_prompt.
+                     If provided, must be the same length as images.
             
         Returns:
             List of caption strings, one per image, in the same order as images.
@@ -103,14 +104,17 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         if not images:
             return []
 
-        if prompt is None:
+        if prompts is None:
             prompt = self.default_prompt
+            prompts = [prompt] * len(images)
+        else:
+            if len(prompts) != len(images):
+                raise ValueError("Number of prompts must match number of images")
 
         pil_images = [self._to_pil(img) for img in images]
-        prompts = [prompt] * len(pil_images)
-
+        print(prompts)
         inputs = self.processor(
-            text=prompts,
+            text=["<image>" + p for p in prompts],
             images=pil_images,
             return_tensors="pt",
             padding=True,
@@ -126,7 +130,7 @@ class PaliGemmaImageCaptionProvider(ImageCaptionProvider):
         decoded_outputs = self.processor.batch_decode(
             output, skip_special_tokens=True
         )
-        return [d[len(prompt) :].strip() for d in decoded_outputs]
+        return [d[len(prompt) :].strip() for d, prompt in zip(decoded_outputs, prompts)]
 
     def get_supported_formats(self) -> list[str]:
         """Get list of supported image formats."""

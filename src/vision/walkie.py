@@ -105,7 +105,7 @@ class WalkieVision:
             raise RuntimeError("Camera is not initialized. Please provide a robot instance.")
         return self._camera.capture_pil()
 
-    def describe(self, image: Image.Image, prompt: str | None = None) -> str:
+    def caption(self, image: Image.Image, prompt: str | None = None) -> str:
         """Return a text description (caption) of the given image.
 
         Args:
@@ -116,6 +116,17 @@ class WalkieVision:
             Caption string.
         """
         return self._caption.caption(image, prompt=prompt)
+    
+    def caption_batch(self, images: list[Image.Image], prompts: list[str] | None = None) -> list[str]:
+        """Return text descriptions (captions) for a batch of images.
+
+        Args:
+            images: List of PIL Images to describe.
+            prompts: Optional list of prompts to guide the captioning.
+        Returns:
+            List of caption strings.
+        """
+        return self._caption.caption_batch(images, prompts=prompts)
 
     def detect_objects(self, image: Image.Image) -> list[DetectedObject]:
         """Detect/segment objects in the given image.
