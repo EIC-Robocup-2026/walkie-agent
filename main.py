@@ -8,6 +8,7 @@ from src.agents import create_walkie_agent
 from src.audio import WalkieAudio
 from src.vision import WalkieVision
 from src.db import WalkieVectorDB
+from src.screen import WalkieScreen
 
 load_dotenv()
 
@@ -65,6 +66,7 @@ walkie_vision = WalkieVision(
 )
 walkie_db = WalkieVectorDB(persist_directory="chroma_db")
 
+screen = WalkieScreen()
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(
     model,
@@ -73,10 +75,14 @@ agent = create_walkie_agent(
     walkie_db=walkie_db,
 )
 
-def run_agent(text):
-    result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
-    content = result["messages"][-1].content
-    return content
+def show_listening():
+    screen.show_text("Listening...", font_size=128, background_color=(93, 189, 9))
+
+def show_thinking():
+    screen.show_text("Thinking...", font_size=128, background_color=(232, 179, 21))
+
+def show_taking_action():
+    screen.show_text("Taking Action...", font_size=128, background_color=(219, 62, 50))
 
 def run_agent(text):
     result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
