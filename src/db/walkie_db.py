@@ -14,6 +14,9 @@ class ObjectRecord:
     object_embedding: Sequence[float]
     heading: float
     scene_id: str | None = None
+    # optional: from detectors that output class (e.g. YOLO)
+    class_id: int | None = None
+    class_name: str | None = None
 
 @dataclass
 class SceneRecord:
@@ -66,6 +69,10 @@ class WalkieVectorDB:
             "heading": float(record.heading),
             "scene_id": record.scene_id or "",
         }
+        if record.class_id is not None:
+            metadata["class_id"] = int(record.class_id)
+        if record.class_name is not None:
+            metadata["class_name"] = str(record.class_name)
 
         self._objects_col.upsert(
             ids=[record.object_id],
@@ -101,8 +108,11 @@ class WalkieVectorDB:
         self,
         query_embedding: Sequence[float],
         n_results: int = 5,
+        min_similarity: float = 0.75,
     ) -> List[Dict[str, Any]]:
-        """Semantic search for objects by embedding similarity."""
+        """Semantic search for objects by embedding similarity.
+        Only returns hits with similarity >= min_similarity (cosine: 1 - distance).
+        """
         result = self._objects_col.query(
             query_embeddings=[list(query_embedding)],
             n_results=n_results,
@@ -114,13 +124,18 @@ class WalkieVectorDB:
 
         hits: List[Dict[str, Any]] = []
         for meta, dist in zip(metadatas_batch, distances_batch):
+            distance = float(dist)
+            similarity = 1.0 - distance  # cosine distance -> similarity
+            if similarity < min_similarity:
+                continue
             hit = dict(meta)
             hit["object_xyz"] = [
                 hit.get("object_x"),
                 hit.get("object_y"),
                 hit.get("object_z"),
             ]
-            hit["distance"] = float(dist)
+            hit["distance"] = distance
+            hit["similarity"] = similarity
             hits.append(hit)
 
         return hits
@@ -199,8 +214,11 @@ class WalkieVectorDB:
         self,
         query_embedding: Sequence[float],
         n_results: int = 5,
+        min_similarity: float = 0.75,
     ) -> List[Dict[str, Any]]:
-        """Semantic search for scenes by embedding similarity."""
+        """Semantic search for scenes by embedding similarity.
+        Only returns hits with similarity >= min_similarity (cosine: 1 - distance).
+        """
         result = self._scenes_col.query(
             query_embeddings=[list(query_embedding)],
             n_results=n_results,
@@ -212,13 +230,18 @@ class WalkieVectorDB:
 
         hits: List[Dict[str, Any]] = []
         for meta, dist in zip(metadatas_batch, distances_batch):
+            distance = float(dist)
+            similarity = 1.0 - distance
+            if similarity < min_similarity:
+                continue
             hit = dict(meta)
             hit["scene_xyz"] = [
                 hit.get("scene_x"),
                 hit.get("scene_y"),
                 hit.get("scene_z"),
             ]
-            hit["distance"] = float(dist)
+            hit["distance"] = distance
+            hit["similarity"] = similarity
             hits.append(hit)
 
         return hits
@@ -262,8 +285,11 @@ class WalkieVectorDB:
         self,
         face_embedding: Sequence[float],
         n_results: int = 5,
+        min_similarity: float = 0.75,
     ) -> List[Dict[str, Any]]:
-        """Face matching by embedding similarity."""
+        """Face matching by embedding similarity.
+        Only returns hits with similarity >= min_similarity (cosine: 1 - distance).
+        """
         result = self._people_col.query(
             query_embeddings=[list(face_embedding)],
             n_results=n_results,
@@ -275,11 +301,47 @@ class WalkieVectorDB:
 
         hits: List[Dict[str, Any]] = []
         for meta, dist in zip(metadatas_batch, distances_batch):
+            distance = float(dist)
+            similarity = 1.0 - distance
+            if similarity < min_similarity:
+                continue
             hit = dict(meta)
-            hit["distance"] = float(dist)
+            hit["distance"] = distance
+            hit["similarity"] = similarity
             hits.append(hit)
 
         return hits
 
+    def delete_all_objects(self) -> None:
+        """Delete all objects."""
+        self._client.delete_collection("objects")
+        # Create a new collection
+        self._objects_col = self._client.get_or_create_collection(
+            name="objects",
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    def delete_all_scenes(self) -> None:
+        """Delete all scenes."""
+        self._client.delete_collection("scenes")
+        # Create a new collection
+        self._scenes_col = self._client.get_or_create_collection(
+            name="scenes",
+            metadata={"hnsw:space": "cosine"},
+        )
+    def delete_all_people(self) -> None:
+        """Delete all people."""
+        self._client.delete_collection("people")
+        # Create a new collection
+        self._people_col = self._client.get_or_create_collection(
+            name="people",
+            metadata={"hnsw:space": "cosine"},
+        )
+    
+    def delete_all(self) -> None:
+        """Delete all objects, scenes, and people."""
+        self.delete_all_objects()
+        self.delete_all_scenes()
+        self.delete_all_people()
 
 __all__ = ["ObjectRecord", "SceneRecord", "PersonRecord", "WalkieVectorDB"]

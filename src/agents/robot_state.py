@@ -7,12 +7,8 @@ it for inclusion in agent system prompts.
 from __future__ import annotations
 
 import math
-from typing import Any
 
-# Lazy import to avoid circular imports when agents load middleware
-def _get_robot():
-    from src.agents.actuators_agent.tools import robot
-    return robot
+from walkie_sdk import WalkieRobot
 
 
 class RobotState:
@@ -25,11 +21,9 @@ class RobotState:
 
     def __init__(
         self,
-        robot: Any | None = None,
+        robot: WalkieRobot,
         *,
-        vision_enabled: bool = False,
-        battery_level: float | None = None,
-        arm_status: str = "idle",
+        vision_enabled: bool = True,
     ) -> None:
         """Initialize the robot state provider.
 
@@ -37,13 +31,9 @@ class RobotState:
             robot: Optional WalkieRobot instance. If None, the singleton
                 from actuators_agent.tools is used.
             vision_enabled: Whether vision/camera is currently enabled (placeholder).
-            battery_level: Battery level 0.0--1.0 or None if unknown (placeholder).
-            arm_status: Human-readable arm status, e.g. "idle", "moving" (placeholder).
         """
         self._robot = robot
         self.vision_enabled = vision_enabled
-        self.battery_level = battery_level
-        self.arm_status = arm_status
 
     def get_pose(self) -> dict[str, float] | None:
         """Get current pose from the robot SDK.
@@ -51,9 +41,8 @@ class RobotState:
         Returns:
             Dict with keys x, y, heading (radians), or None if unavailable.
         """
-        r = self._robot if self._robot is not None else _get_robot()
         try:
-            return r.status.get_pose()
+            return self._robot.status.get_pose()
         except Exception:
             return None
 
@@ -76,9 +65,5 @@ class RobotState:
             lines.append("- Position: unknown (pose unavailable)")
 
         lines.append(f"- Vision: {'enabled' if self.vision_enabled else 'disabled'}")
-        if self.battery_level is not None:
-            pct = int(self.battery_level * 100)
-            lines.append(f"- Battery: {pct}%")
-        lines.append(f"- Arm: {self.arm_status}")
 
         return "\n".join(lines)
