@@ -1,6 +1,12 @@
+import math
+import threading
+import time
+
 from langchain_core.tools import tool
+from walkie_sdk import WalkieRobot
 
 from src.audio.walkie import WalkieAudio
+from src.vision import WalkieVision
 from ..actuators_agent import create_actuator_agent
 from ..vision_agent import create_vision_agent
 
@@ -103,6 +109,121 @@ def create_speak_tool(walkieAudio: WalkieAudio) -> str:
         walkieAudio.speak(text)
         return "Speech completed"
     return speak
+
+def create_follow_person_tool(robot: WalkieRobot, walkie_vision: WalkieVision, walkie_audio: WalkieAudio):
+    """Create a tool that follows the largest visible person until the user says 'stop'.
+
+    Args:
+        robot: WalkieRobot instance for navigation and pose.
+        walkie_vision: WalkieVision instance for object detection.
+        walkie_audio: WalkieAudio instance for listening to voice commands.
+
+    Returns:
+        A LangChain tool.
+    """
+
+    FOLLOW_DISTANCE = 1.5  # meters – stop this far from the person
+    LOOP_SLEEP = 0.5  # seconds between detection cycles
+
+    @tool(parse_docstring=True)
+    def follow_person() -> str:
+        """Follow the nearest (largest) person in view until the user says 'stop'.
+
+        The robot will continuously detect people, navigate to stay 1.5 m in front of the
+        target, and listen for a voice command containing the word 'stop' to end.
+
+        When to use:
+        - "follow me", "come with me", "follow that person"
+
+        When NOT to use:
+        - For one-time navigation to a coordinate (use control_actuators)
+        - For detecting or describing people without moving (use use_vision)
+
+        Returns:
+            str: Summary of the follow session (stopped by user or error).
+        """
+        print("follow_person: starting follow loop")
+
+        # -- background listener thread --
+        stop_event = threading.Event()
+
+        def _listen_for_stop():
+            while not stop_event.is_set():
+                try:
+                    text = walkie_audio.listen(
+                        timeout=5.0,
+                        min_duration=0.5,
+                        wait_for_speech=False,
+                    )
+                    if text and "stop" in text.lower():
+                        print(f"follow_person: heard stop command ('{text}')")
+                        stop_event.set()
+                except Exception as e:
+                    print(f"follow_person: listener error: {e}")
+
+        listener = threading.Thread(target=_listen_for_stop, daemon=True)
+        listener.start()
+
+        # -- main detect-navigate loop --
+        try:
+            while not stop_event.is_set():
+                # 1. Detect objects
+                image = walkie_vision.capture()
+                objects = walkie_vision.detect_objects(image)
+
+                # 2. Filter for persons, pick the biggest one
+                persons = [o for o in objects if o.class_name and o.class_name.lower() == "person"]
+                if not persons:
+                    time.sleep(LOOP_SLEEP)
+                    continue
+
+                biggest = max(persons, key=lambda o: o.area_ratio)
+
+                # 3. Get 3D position of the person in map frame
+                positions = robot.tools.bboxes_to_positions([biggest.bbox])
+                px, py, pz = positions[0]
+
+                # 4. Get current robot pose
+                pose = robot.status.get_pose()
+                if pose is None:
+                    print("follow_person: unable to get pose, retrying…")
+                    time.sleep(LOOP_SLEEP)
+                    continue
+
+                rx, ry = pose["x"], pose["y"]
+
+                # 5. Compute direction and distance
+                dx, dy = px - rx, py - ry
+                dist = math.sqrt(dx**2 + dy**2)
+
+                if dist <= FOLLOW_DISTANCE:
+                    # Already close enough – just wait
+                    time.sleep(LOOP_SLEEP)
+                    continue
+
+                # 6. Target point 1.5 m before the person along the robot→person line
+                heading = math.atan2(dy, dx)
+                tx = px - FOLLOW_DISTANCE * (dx / dist)
+                ty = py - FOLLOW_DISTANCE * (dy / dist)
+
+                print(
+                    f"follow_person: person at ({px:.2f}, {py:.2f}), "
+                    f"dist={dist:.2f} m, navigating to ({tx:.2f}, {ty:.2f})"
+                )
+                robot.nav.go_to(x=tx, y=ty, heading=heading, blocking=False)
+
+                time.sleep(LOOP_SLEEP)
+        except Exception as e:
+            robot.status.stop()
+            return f"Follow person ended with error: {e}"
+
+        # 7. User said stop – halt the robot
+        robot.status.stop()
+        print("follow_person: stopped following")
+        return "Stopped following person."
+
+    return follow_person
+
 
 @tool(parse_docstring=True)
 def think(thought: str) -> str:
