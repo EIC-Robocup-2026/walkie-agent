@@ -157,29 +157,22 @@ class WalkieScreen:
 
     def _display_loop(self) -> None:
         """Background loop that keeps the OpenCV window alive."""
-        # Create the window and show an initial frame *before* setting
-        # fullscreen – some Linux window managers ignore the property
-        # unless a frame has already been presented.
         cv2.namedWindow(self._window_name, cv2.WINDOW_NORMAL)
-
-        with self._lock:
-            frame = self._frame
-        cv2.imshow(self._window_name, frame)
-        cv2.waitKey(1)
-
-        if self._fullscreen:
-            cv2.setWindowProperty(
-                self._window_name,
-                cv2.WND_PROP_FULLSCREEN,
-                cv2.WINDOW_FULLSCREEN,
-            )
-            cv2.waitKey(1)
 
         while self._running:
             with self._lock:
                 frame = self._frame
 
             cv2.imshow(self._window_name, frame)
+
+            # Re-apply fullscreen after every imshow – some Linux WMs
+            # reset the property when the displayed image changes.
+            if self._fullscreen:
+                cv2.setWindowProperty(
+                    self._window_name,
+                    cv2.WND_PROP_FULLSCREEN,
+                    cv2.WINDOW_FULLSCREEN,
+                )
 
             # waitKey keeps the window responsive; 30 ms ≈ ~33 fps cap
             key = cv2.waitKey(30) & 0xFF
