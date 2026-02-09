@@ -92,6 +92,7 @@ def create_speak_tool(walkieAudio: WalkieAudio) -> str:
         
         When to use:
         - To give the user information before calling other tools (performing actions)
+        - You MAY NOT use this tool to speak out loud the final answer to the user. Instead, return the final answer in the agent response.
         
         Args:
             text: The text to speak

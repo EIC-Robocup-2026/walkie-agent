@@ -8,6 +8,7 @@ from langchain_core.tools import tool
 
 from src.db.walkie_db import ObjectRecord, SceneRecord, WalkieVectorDB
 from src.vision import WalkieVision
+import math
 
 
 def get_vision_tools(
@@ -84,6 +85,7 @@ def get_vision_tools(
             return "No objects detected in current view."
         descriptions = vision.caption_batch([obj.cropped_image for obj in objects])
         positions = robot.tools.bboxes_to_positions([obj.bbox for obj in objects])
+        curr_pos = robot.status.get_pose()
         lines = [f"Detected {len(objects)} object(s):"]
         count = 1
         for obj, desc, position in zip(objects, descriptions, positions):
@@ -91,8 +93,9 @@ def get_vision_tools(
             confidence = obj.confidence if obj.confidence else 0.0
             if confidence < CONFIDENCE_THRESHOLD:
                 continue
+            distance = math.sqrt((curr_pos['x'] - position[0])**2 + (curr_pos['y'] - position[1])**2 + position[2]**2)
             formatted_pos = f"(x={position[0]:.2f}, y={position[1]:.2f}, z={position[2]:.2f})"
-            lines.append(f"  - {count}) Class Name: {class_name} Description: {desc} Position: {formatted_pos}")
+            lines.append(f"  - {count}) Class Name: {class_name} Description: {desc} Position: {formatted_pos} Distance: {distance:.2f} m.")
             count += 1
         # print(f"Detected objects: {lines}")
         print("\n".join(lines))
@@ -148,7 +151,7 @@ def get_vision_tools(
         hits = db.query_objects(query_emb, n_results=5)
         if not hits:
             return f"No stored location for '{object_name}' in the database."
-        lines = [f"Found {len(hits)} location(s) for '{object_name}':"]
+        lines = []
         for h in hits:
             class_name = h.get("class_name", "unknown")
             xyz = h.get("object_xyz", [0, 0, 0])

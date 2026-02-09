@@ -97,16 +97,3 @@ class Camera:
         frame = self.capture()
         _, buffer = cv2.imencode(".png", frame)
         return buffer.tobytes()
-
-    def __enter__(self) -> "Camera":
-        """Context manager entry - opens the camera."""
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        """Context manager exit - closes the camera."""
-        self.close()
-
-    def __del__(self) -> None:
-        """Destructor - ensures camera connection is released."""
-        self.close()

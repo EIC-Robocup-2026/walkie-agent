@@ -9,6 +9,7 @@ from src.audio import WalkieAudio
 from src.vision import WalkieVision
 from src.db import WalkieVectorDB
 from src.screen import WalkieScreen
+import time
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ model = ChatOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
     temperature=0,
     base_url="https://openrouter.ai/api/v1",
-    model="google/gemini-3-flash-preview:nitro",
+    model="google/gemini-2.5-flash:nitro",
 )
 # model = ChatGoogleGenerativeAI(
 #     model="gemini-2.5-flash",
@@ -66,7 +67,7 @@ walkie_vision = WalkieVision(
 )
 walkie_db = WalkieVectorDB(persist_directory="chroma_db")
 
-screen = WalkieScreen()
+screen = WalkieScreen(fullscreen=False, screen_size=(1920, 1080))
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(
     model,
@@ -89,24 +90,67 @@ def run_agent(text):
     content = result["messages"][-1].content
     return content
 
+# Can you follow the person in front of you
+
+def listen():
+    show_listening()
+    print("Recording...")
+    text = walkie_audio.listen()
+    return text
+
+# result = run_agent("Can you find how many chairs are there in the database? Please count it.")
+# print(result)
+
+# while True:
+#     pass
+
+# result = run_agent("Can you describe what's in front of you")
+# print(result)
+# walkie_audio.speak(result)
+
+# while True:
+#     pass
+
 def main():
+    show_thinking()
 
-    show_taking_action()
-    result = run_agent("Can you find the table from the database, go there please and check if there is a laptop on it?")
+    time.sleep(10)
     
-    print(result)
-    
-    # while True:
-    #     show_listening()
-    #     print("Recording...")
-    #     text = walkie_audio.listen()
-    #     if text == "":
-    #         continue
-    #     print(f"Transcription: {text}")
-    #     show_taking_action()
-    #     content = run_agent(text)
+    while True:
+        text = listen()
+        if text == "":
+            continue
+        print(f"Transcription: {text}")
+        show_taking_action()
 
-    #     print(content)
+        # Test
+
+        result = run_agent("Can you find the table from the database, go there please and check if there is a laptop on it?")
+        print(result)
+
+        walkie_audio.speak(result)
+
+        text = listen()
+        if text == "":
+            continue
+        print(f"Transcription: {text}")
+        show_taking_action()
+
+        result = run_agent("Can you find the cabinet from the database and go there please?")
+        print(result)
+
+        walkie_audio.speak(result)
+
+        text = listen()
+        if text == "":
+            continue
+        print(f"Transcription: {text}")
+        show_taking_action()
+
+        result = run_agent("Can you find how many chairs are there in the database? Please count it.")
+        print(result)
+
+        walkie_audio.speak(result)
         
         # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
         # print(styled_text)
