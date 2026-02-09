@@ -29,6 +29,7 @@ def create_actuators_agent_tools(robot: WalkieRobot):
             y: Target y coordinate in meters (map frame).
             heading: Target heading in degrees (default: keep current).
             early_stop: If True, the robot will stop moving before reaching the goal. (Useful when wanting to see an object closer/person closer instead of hitting it. e.g. when wanting to navigate towards a person.)
+        
         Returns:
             str: Result of the navigation (success or error).
         """

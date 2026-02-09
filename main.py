@@ -61,6 +61,7 @@ walkie_vision = WalkieVision(
     caption_provider="paligemma",
     embedding_provider="clip",
     detection_provider="yolo",
+    preload=True,
 )
 walkie_db = WalkieVectorDB(persist_directory="chroma_db")
 
