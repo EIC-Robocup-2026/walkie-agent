@@ -91,18 +91,22 @@ def run_agent(text):
 
 def main():
 
-    
-        
-    result = run_agent("Can you describe what you see in the current view?")
+    show_taking_action()
+    result = run_agent("Can you find the table from the database, go there please and check if there is a laptop on it?")
     
     print(result)
     
     # while True:
+    #     show_listening()
     #     print("Recording...")
     #     text = walkie_audio.listen()
     #     if text == "":
     #         continue
     #     print(f"Transcription: {text}")
+    #     show_taking_action()
+    #     content = run_agent(text)
+
+    #     print(content)
         
         # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
         # print(styled_text)

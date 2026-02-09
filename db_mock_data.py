@@ -12,11 +12,11 @@ def main():
     print("=" * 60)
 
     vision = WalkieVision(
-        caption_provider="google",
+        caption_provider="paligemma",
         embedding_provider="clip",
         detection_provider="yolo",
+        preload=True,
     )
-    vision.open()
     
     # 2. Upsert into DB
     db = WalkieVectorDB()
@@ -26,31 +26,31 @@ def main():
     objects = [
         ObjectRecord(
             object_id=f"obj_{uuid.uuid4().hex[:8]}",
-            object_xyz=[1.0, 0.5, 0.0],
-            object_embedding=vision.embed_text("water bottle"),
-            heading=0.0,
+            object_xyz=[5.189, -0.215, 0.0],
+            object_embedding=vision.embed_text("table"),
+            heading=0.0293959,
             scene_id=scene_id,
             class_id=1,
-            class_name="water bottle",
+            class_name="Table",
         ),
         ObjectRecord(
             object_id=f"obj_{uuid.uuid4().hex[:8]}",
-            object_xyz=[-1.0, 0.0, 0.0],
-            object_embedding=vision.embed_text("person"),
-            heading=0.0,
+            object_xyz=[3.275, -2.783, 0.0],
+            object_embedding=vision.embed_text("cabinet"),
+            heading=-1.5352134,
             scene_id=scene_id,
             class_id=2,
-            class_name="person",
+            class_name="Cabinet",
         ),
-        ObjectRecord(
-            object_id=f"obj_{uuid.uuid4().hex[:8]}",
-            object_xyz=[0.0, 0.0, 0.0],
-            object_embedding=vision.embed_text("chair"),
-            heading=0.0,
-            scene_id=scene_id,
-            class_id=3,
-            class_name="chair",
-        ),
+        # ObjectRecord(
+        #     object_id=f"obj_{uuid.uuid4().hex[:8]}",
+        #     object_xyz=[0.0, 0.0, 0.0],
+        #     object_embedding=vision.embed_text("chair"),
+        #     heading=0.0,
+        #     scene_id=scene_id,
+        #     class_id=3,
+        #     class_name="chair",
+        # ),
     ]
     
     for obj in objects:
