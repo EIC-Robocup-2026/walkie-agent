@@ -24,6 +24,8 @@ def get_vision_tools(
         List of LangChain tools.
     """
 
+    robot = vision._camera._bot
+
     # -------------------------------------------------------------------------
     # Scene description and classification
     # -------------------------------------------------------------------------
@@ -81,13 +83,14 @@ def get_vision_tools(
         if not objects:
             return "No objects detected in current view."
         descriptions = vision.caption_batch([obj.cropped_image for obj in objects])
+        positions = robot.tools.bboxes_to_positions([obj.bbox for obj in objects])
         lines = [f"Detected {len(objects)} object(s):"]
-        for i, (obj, desc) in enumerate(zip(objects, descriptions)):
+        for i, (obj, desc, position) in enumerate(zip(objects, descriptions, positions)):
             class_name = obj.class_name if obj.class_name else "unknown"
             confidence = obj.confidence if obj.confidence else 0.0
             if confidence < CONFIDENCE_THRESHOLD:
                 continue
-            lines.append(f"  - Object {i}: {class_name} (confidence: {confidence:.2f}) - Description: {desc}")
+            lines.append(f"  - Object {i}: {class_name} Description: {desc} Position: {position}")
         # print(f"Detected objects: {lines}")
         print("\n".join(lines))
         return "\n".join(lines)

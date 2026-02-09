@@ -4769,7 +4769,7 @@ requires-dist = [
 [[package]]
 name = "walkie-sdk"
 version = "0.1.0"
-source = { git = "https://github.com/EIC-Robocup-2026/walkie-sdk.git#aec911ffe19afc65620c5537f1211676ada6ffaa" }
+source = { git = "https://github.com/EIC-Robocup-2026/walkie-sdk.git#11008186ed75d06724e6838441c7e20ad2b8761a" }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiortc" },

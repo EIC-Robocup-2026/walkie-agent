@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+EARLY_STOP_DISTANCE = 1.5 # meters
+
 def create_actuators_agent_tools(robot: WalkieRobot):
 
     def _get_current_pose():
@@ -17,7 +19,7 @@ def create_actuators_agent_tools(robot: WalkieRobot):
         return pose
 
     @tool(parse_docstring=True)
-    def move_absolute(x: float, y: float, heading: float = 0.0) -> str:
+    def move_absolute(x: float, y: float, heading: float = 0.0, early_stop: bool = False) -> str:
         """Move the robot to a specific (x, y) position on the map, with optional heading. Use when the goal is given in map coordinates.
 
         Units: x, y in meters; heading in degrees (0 = forward/east, 90 = left/north).
@@ -26,12 +28,16 @@ def create_actuators_agent_tools(robot: WalkieRobot):
             x: Target x coordinate in meters (map frame).
             y: Target y coordinate in meters (map frame).
             heading: Target heading in degrees (default: keep current).
-
+            early_stop: If True, the robot will stop moving before reaching the goal. (Useful when wanting to see an object closer/person closer instead of hitting it. e.g. when wanting to navigate towards a person.)
         Returns:
             str: Result of the navigation (success or error).
         """
         print(f"Moving robot absolutely to x: {x}, y: {y}, heading: {heading}")
         heading_rad = math.radians(heading)
+        # If early_stop is True, we will stop 1.5 meters before reaching the goal.
+        if early_stop:
+            x = x - EARLY_STOP_DISTANCE * math.cos(heading_rad)
+            y = y - EARLY_STOP_DISTANCE * math.sin(heading_rad)
         result = robot.nav.go_to(x=x, y=y, heading=heading_rad, blocking=True)
         return f"Robot moved successfully"
 
