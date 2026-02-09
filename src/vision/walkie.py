@@ -36,7 +36,8 @@ class WalkieVision:
     def __init__(
         self,
         robot: WalkieRobot | None = None,
-        caption_provider: str = "google",
+        camera_device: int | None = None,
+        caption_provider: str = "paligemma",
         embedding_provider: str = "clip",
         detection_provider: str = "sam",
         caption_config: dict[str, Any] | None = None,
@@ -46,8 +47,14 @@ class WalkieVision:
     ) -> None:
         """Initialize WalkieVision with camera and providers.
 
+        Provide *robot* for robot camera access **or** *camera_device* for a
+        local webcam (useful for testing without a robot).  If neither is
+        given the camera will be ``None`` and ``capture()`` will raise.
+
         Args:
             robot: WalkieRobot instance for camera access.
+            camera_device: Local webcam device index (e.g. 0). Mutually
+                exclusive with *robot*.
             caption_provider: Image captioning provider (e.g., "google").
             embedding_provider: Embedding provider (e.g., "clip").
             detection_provider: Object detection provider (e.g., "sam").
@@ -58,7 +65,13 @@ class WalkieVision:
                 memory during initialization. This avoids cold-start latency
                 on the first inference call.
         """
-        self._camera = Camera(robot=robot) if robot else None
+        if robot is not None:
+            self._camera = Camera(robot=robot)
+        elif camera_device is not None:
+            self._camera = Camera(device=camera_device)
+            self._camera.open()
+        else:
+            self._camera = None
 
         self._caption = ImageCaption(
             provider=caption_provider,
@@ -114,10 +127,28 @@ class WalkieVision:
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
 
+    def open(self) -> None:
+        """Open resources (camera, etc.).
+
+        Called automatically when used as a context manager.
+        """
+        if self._camera is not None:
+            self._camera.open()
+
+    def close(self) -> None:
+        """Release resources (camera, etc.).
+
+        Called automatically when used as a context manager.
+        """
+        if self._camera is not None:
+            self._camera.close()
+
     def capture(self) -> Image.Image:
         """Capture a single frame as PIL Image (RGB)."""
         if self._camera is None:
-            raise RuntimeError("Camera is not initialized. Please provide a robot instance.")
+            raise RuntimeError(
+                "Camera is not initialized. Provide a 'robot' or 'camera_device' argument."
+            )
         return self._camera.capture_pil()
 
     def caption(self, image: Image.Image, prompt: str | None = None) -> str:
