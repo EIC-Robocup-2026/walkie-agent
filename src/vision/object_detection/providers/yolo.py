@@ -156,7 +156,8 @@ class YOLOObjectDetectionProvider(ObjectDetectionProvider):
                 continue
             crop_rgb = img_rgb[y1p:y2p, x1p:x2p]
             crop_pil = Image.fromarray(crop_rgb)
-            bbox = (x1p, y1p, x2p, y2p)
+            # bbox = (x1p, y1p, x2p, y2p)
+            bbox = ((x1p+x2p)//2, (y1p+y2p)//2, abs(x2p - x1p), abs(y2p - y1p))  # cx, cy, w, h
             class_id = int(cls_ids[idx])
             class_name = names.get(class_id, "unknown")
             confidence = float(confs[idx])
