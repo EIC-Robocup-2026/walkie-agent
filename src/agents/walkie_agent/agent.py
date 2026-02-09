@@ -4,6 +4,7 @@ from langchain.agents.middleware import SummarizationMiddleware
 
 from src.audio.walkie import WalkieAudio
 from src.agents.robot_state import RobotState
+from src.vision.background_detector import BackgroundObjectDetector
 
 from .prompts import WALKIE_AGENT_SYSTEM_PROMPT
 from .tools import create_sub_agents_tools, create_speak_tool, think
@@ -31,8 +32,21 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_d
         tools.append(create_speak_tool(walkieAudio))
     tools.append(think)
 
-    # Check available tools
-    robot_state = RobotState(robot, vision_enabled=True)
+    # Start background object detection (YOLO every 3s, dedup radius 1m)
+    background_detector = BackgroundObjectDetector(
+        vision=walkie_vision,
+        db=walkie_db,
+        robot=robot,
+        interval=3.0,
+        dedup_radius=1.0,
+    )
+    background_detector.start()
+
+    robot_state = RobotState(
+        robot,
+        vision_enabled=True,
+        background_detector=background_detector,
+    )
 
     agent = create_agent(
         model=model,

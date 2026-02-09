@@ -140,6 +140,55 @@ class WalkieVectorDB:
 
         return hits
 
+    def find_nearby_object(
+        self,
+        class_id: int,
+        position: tuple[float, float, float],
+        radius: float = 1.0,
+    ) -> Optional[str]:
+        """Find an existing object with the same class_id within *radius* metres.
+
+        Uses ChromaDB ``where`` filter to narrow by ``class_id``, then checks
+        Euclidean distance on the stored (object_x, object_y, object_z) against
+        the given *position*.
+
+        Args:
+            class_id: The YOLO class id to match.
+            position: ``(x, y, z)`` of the newly detected object in metres.
+            radius: Maximum Euclidean distance to consider a match (default 1.0 m).
+
+        Returns:
+            The ``object_id`` of the closest matching object, or ``None`` if no
+            match is found within *radius*.
+        """
+        import math
+
+        result = self._objects_col.get(
+            where={"class_id": int(class_id)},
+            include=["metadatas"],
+        )
+
+        if not result or not result.get("metadatas"):
+            return None
+
+        best_id: Optional[str] = None
+        best_dist = float("inf")
+
+        for meta in result["metadatas"]:
+            ox = meta.get("object_x", 0.0)
+            oy = meta.get("object_y", 0.0)
+            oz = meta.get("object_z", 0.0)
+            dist = math.sqrt(
+                (position[0] - ox) ** 2
+                + (position[1] - oy) ** 2
+                + (position[2] - oz) ** 2
+            )
+            if dist < radius and dist < best_dist:
+                best_dist = dist
+                best_id = meta.get("object_id")
+
+        return best_id
+
     def get_objects_by_scene(self, scene_id: str) -> List[Dict[str, Any]]:
         """Get all objects belonging to a specific scene."""
         result = self._objects_col.get(

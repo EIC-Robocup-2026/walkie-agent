@@ -38,7 +38,7 @@ class WalkieVision:
         robot: WalkieRobot | None = None,
         caption_provider: str = "google",
         embedding_provider: str = "clip",
-        detection_provider: str = "sam",
+        detection_provider: str = "yolo",
         caption_config: dict[str, Any] | None = None,
         embedding_config: dict[str, Any] | None = None,
         detection_config: dict[str, Any] | None = None,
