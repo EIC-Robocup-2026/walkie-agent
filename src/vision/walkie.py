@@ -1,4 +1,4 @@
-"""WalkieVision - Unified vision interface for camera, captioning, embedding, and object detection.
+"""WalkieVision - Unified vision interface for camera, captioning, embedding, object detection, and pose estimation.
 
 Usage:
     from src.vision import WalkieVision
@@ -8,6 +8,8 @@ Usage:
     image = vision.capture()
     desc = vision.describe(image)
     objects = vision.detect_objects(image)
+    poses = vision.estimate_poses(image)
+    combined = vision.detect_persons_with_pose(image)
     vision.close()
 
     # Or with context manager
@@ -18,6 +20,7 @@ Usage:
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from PIL import Image
@@ -28,10 +31,12 @@ from .embedding import Embedding
 from .image_caption import ImageCaption
 from .object_detection import ObjectDetection
 from .object_detection.base import DetectedObject
+from .pose_estimation import PoseEstimation
+from .pose_estimation.base import PersonDetectionWithPose, PersonPose
 
 
 class WalkieVision:
-    """Unified vision interface combining camera, captioning, embedding, and object detection."""
+    """Unified vision interface combining camera, captioning, embedding, object detection, and pose estimation."""
 
     def __init__(
         self,
@@ -40,9 +45,11 @@ class WalkieVision:
         caption_provider: str = "paligemma",
         embedding_provider: str = "clip",
         detection_provider: str = "sam",
+        pose_provider: str | None = None,
         caption_config: dict[str, Any] | None = None,
         embedding_config: dict[str, Any] | None = None,
         detection_config: dict[str, Any] | None = None,
+        pose_config: dict[str, Any] | None = None,
         preload: bool = False,
     ) -> None:
         """Initialize WalkieVision with camera and providers.
@@ -58,9 +65,12 @@ class WalkieVision:
             caption_provider: Image captioning provider (e.g., "google").
             embedding_provider: Embedding provider (e.g., "clip").
             detection_provider: Object detection provider (e.g., "sam").
+            pose_provider: Pose estimation provider (e.g., "yolo_pose").
+                Set to ``None`` to skip pose-estimation initialisation.
             caption_config: Config for ImageCaption.
             embedding_config: Config for Embedding.
             detection_config: Config for ObjectDetection.
+            pose_config: Config for PoseEstimation.
             preload: If True, eagerly load all provider model weights into
                 memory during initialization. This avoids cold-start latency
                 on the first inference call.
@@ -86,6 +96,14 @@ class WalkieVision:
             **(detection_config or {}),
         )
 
+        if pose_provider is not None:
+            self._pose: PoseEstimation | None = PoseEstimation(
+                provider=pose_provider,
+                **(pose_config or {}),
+            )
+        else:
+            self._pose = None
+
         if preload:
             self.preload_models()
 
@@ -109,6 +127,11 @@ class WalkieVision:
         """Get the ObjectDetection instance."""
         return self._detection
 
+    @property
+    def pose(self) -> PoseEstimation | None:
+        """Get the PoseEstimation instance (``None`` if not configured)."""
+        return self._pose
+
     def preload_models(self) -> None:
         """Eagerly load all provider model weights into memory.
 
@@ -119,6 +142,8 @@ class WalkieVision:
         self._caption.load_model()
         self._embedding.load_model()
         self._detection.load_model()
+        if self._pose is not None:
+            self._pose.load_model()
 
     def __enter__(self) -> WalkieVision:
         self.open()
@@ -217,6 +242,108 @@ class WalkieVision:
                 item["confidence"] = obj.confidence
             results.append(item)
         return results
+
+    # ------------------------------------------------------------------
+    # Pose estimation
+    # ------------------------------------------------------------------
+
+    def estimate_poses(self, image: Image.Image) -> list[PersonPose]:
+        """Estimate poses for all persons in *image*.
+
+        Requires a ``pose_provider`` to have been set during initialisation.
+
+        Args:
+            image: PIL Image to run pose estimation on.
+
+        Returns:
+            List of ``PersonPose`` instances.
+
+        Raises:
+            RuntimeError: If no pose provider is configured.
+        """
+        if self._pose is None:
+            raise RuntimeError(
+                "Pose estimation is not configured. "
+                "Pass pose_provider='yolo_pose' when creating WalkieVision."
+            )
+        return self._pose.estimate(image)
+
+    def detect_persons_with_pose(
+        self,
+        image: Image.Image,
+    ) -> list[PersonDetectionWithPose]:
+        """Detect persons via object detection and match each with pose keypoints.
+
+        Runs:
+        1. Object detection (existing provider) -- filtered to ``class_name == 'person'``.
+        2. Pose estimation (YOLO-pose provider).
+        3. Greedy nearest-neighbour matching on bbox-centre Euclidean distance.
+
+        Args:
+            image: PIL Image.
+
+        Returns:
+            List of ``PersonDetectionWithPose`` (one per detected person).
+            Persons without a matching pose will have ``pose=None``.
+        """
+        if self._pose is None:
+            raise RuntimeError(
+                "Pose estimation is not configured. "
+                "Pass pose_provider='yolo_pose' when creating WalkieVision."
+            )
+
+        # 1. Object-detection persons
+        all_objects = self._detection.detect(image)
+        persons = [
+            obj
+            for obj in all_objects
+            if obj.class_name and obj.class_name.lower() == "person"
+        ]
+
+        # 2. Pose estimation
+        poses = self._pose.estimate(image)
+
+        # 3. Greedy nearest-neighbour matching (bbox centre distance)
+        used_pose_indices: set[int] = set()
+        results: list[PersonDetectionWithPose] = []
+
+        for det in persons:
+            dcx, dcy = det.bbox[0], det.bbox[1]
+            best_dist = float("inf")
+            best_pi: int | None = None
+
+            for pi, pose in enumerate(poses):
+                if pi in used_pose_indices:
+                    continue
+                pcx, pcy = pose.bbox[0], pose.bbox[1]
+                dist = math.sqrt((dcx - pcx) ** 2 + (dcy - pcy) ** 2)
+                if dist < best_dist:
+                    best_dist = dist
+                    best_pi = pi
+
+            if best_pi is not None:
+                used_pose_indices.add(best_pi)
+                results.append(
+                    PersonDetectionWithPose(
+                        detection=det,
+                        pose=poses[best_pi],
+                        distance=best_dist,
+                    )
+                )
+            else:
+                results.append(
+                    PersonDetectionWithPose(
+                        detection=det,
+                        pose=None,
+                        distance=0.0,
+                    )
+                )
+
+        return results
+
+    # ------------------------------------------------------------------
+    # Embedding helpers
+    # ------------------------------------------------------------------
 
     def embed_image(self, image: Image.Image) -> list[float]:
         """Compute embedding for an image."""
