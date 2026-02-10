@@ -214,3 +214,4 @@ chroma_db/
 
 # Models
 *.pth
+*.pt

@@ -13,6 +13,19 @@ import time
 
 load_dotenv()
 
+screen = WalkieScreen(fullscreen=False, screen_size=(1920, 1080))
+
+def show_listening():
+    screen.show_text("Listening...", font_size=128, background_color=(93, 189, 9))
+
+def show_initializing():
+    screen.show_text("Initializing...", font_size=128, background_color=(232, 179, 21))
+
+def show_taking_action():
+    screen.show_text("Taking Action...", font_size=128, background_color=(219, 62, 50))
+
+show_initializing()
+
 # Track people until the person say Thank you. go back to the starting point.
 # VQA about the current camera view and DB.
 # Grab an object and put it somewhere.
@@ -67,8 +80,6 @@ walkie_vision = WalkieVision(
     preload=True,
 )
 walkie_db = WalkieVectorDB(persist_directory="chroma_db")
-
-screen = WalkieScreen(fullscreen=False, screen_size=(1920, 1080))
 # Create the main Walkie agent with sub-agents for movement and vision
 agent = create_walkie_agent(
     model,
@@ -76,15 +87,6 @@ agent = create_walkie_agent(
     walkie_vision=walkie_vision,
     walkie_db=walkie_db,
 )
-
-def show_listening():
-    screen.show_text("Listening...", font_size=128, background_color=(93, 189, 9))
-
-def show_initializing():
-    screen.show_text("Initializing...", font_size=128, background_color=(232, 179, 21))
-
-def show_taking_action():
-    screen.show_text("Taking Action...", font_size=128, background_color=(219, 62, 50))
 
 def run_agent(text):
     result = agent.invoke({"messages": [{"role": "user", "content": text}]}, {"configurable": {"thread_id": "1"}})
@@ -99,64 +101,28 @@ def listen():
     text = walkie_audio.listen()
     return text
 
-# result = run_agent("Can you find how many chairs are there in the database? Please count it.")
-# print(result)
-
-# while True:
-#     pass
-
-result = run_agent("Please wait for a person to raise their hands")
-print(result)
-walkie_audio.speak(result)
-
-while True:
-    pass
-
 def main():
-    show_initializing()
 
-    time.sleep(10)
-    
-    while True:
-        text = listen()
-        if text == "":
-            continue
-        print(f"Transcription: {text}")
-        show_taking_action()
+    result = run_agent("Can you please wait for someone to raise their hands?")
+    print(result)
+    walkie_audio.speak(result)
 
-        # Test
+    text = listen()
+    print(f"Transcription: {text}")
+    show_taking_action()
 
-        result = run_agent("Can you find the table from the database, go there please and check if there is a laptop on it?")
-        print(result)
+    result = run_agent("Please record where you are,  go to the counter, grab me a bottle of tea, and give me the tea?")
+    print(result)
+    walkie_audio.speak(result)
 
-        walkie_audio.speak(result)
+    text = listen()
+    print(f"Transcription: {text}")
+    show_taking_action()
 
-        text = listen()
-        if text == "":
-            continue
-        print(f"Transcription: {text}")
-        show_taking_action()
+    result = run_agent("Awesome! Now you can go back to the counter.")
+    print(result)
 
-        result = run_agent("Can you find the cabinet from the database and go there please?")
-        print(result)
-
-        walkie_audio.speak(result)
-
-        text = listen()
-        if text == "":
-            continue
-        print(f"Transcription: {text}")
-        show_taking_action()
-
-        result = run_agent("Can you find how many chairs are there in the database? Please count it.")
-        print(result)
-
-        walkie_audio.speak(result)
-        
-        # styled_text = ElevenLabsProvider.style_text(model, content, personality="You are a super cute, warm and friendly assistant. You chuckles a lot when you are happy.")
-        # print(styled_text)
-        
-        # walkie_audio.speak(styled_text)
+    walkie_audio.speak(result)
 
 
 if __name__ == "__main__":

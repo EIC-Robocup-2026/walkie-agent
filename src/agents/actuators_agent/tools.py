@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+PAUSE_AFTER_WALK = True
+
 EARLY_STOP_DISTANCE = 1.5 # meters
 
 def create_actuators_agent_tools(robot: WalkieRobot):
@@ -36,6 +38,8 @@ def create_actuators_agent_tools(robot: WalkieRobot):
         heading_rad = math.radians(heading)
         # If early_stop is True, we will stop 1.5 meters before reaching the goal.
         result = robot.nav.go_to(x=x, y=y, heading=heading_rad, blocking=True)
+        if PAUSE_AFTER_WALK:
+            input()
         return f"Robot moved successfully"
 
     @tool(parse_docstring=True)
@@ -64,6 +68,8 @@ def create_actuators_agent_tools(robot: WalkieRobot):
         y_global = y_cur + x * math.sin(heading_cur_rad) + y * math.cos(heading_cur_rad)
         print(f"Moving to global coordinates: x: {x_global}, y: {y_global}, heading: {heading_cur_rad + heading_rad}")
         result = robot.nav.go_to(x=x_global, y=y_global, heading=heading_cur_rad + heading_rad, blocking=True)
+        if PAUSE_AFTER_WALK:
+            input()
         return f"Robot moved successfully"
 
     @tool
@@ -78,8 +84,8 @@ def create_actuators_agent_tools(robot: WalkieRobot):
     def command_arm(action: str) -> str:
         """Command the robotic arm to perform an action. Use for gestures (e.g. wave, point) or manipulation (e.g. pick up, place). Be specific: "wave hello", "point left", "pick up the cup"."""
         print(f"Commanding arm to perform action: {action}")
-        # Test
+        if PAUSE_AFTER_WALK:
+            input()
         return f"Arm command completed: {action}"
-        # TODO: Implement arm command from Walkie SDK
 
     return move_absolute, move_relative, get_current_pose, command_arm
