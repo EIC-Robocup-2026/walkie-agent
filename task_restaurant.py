@@ -107,11 +107,15 @@ def main():
     print(result)
     walkie_audio.speak(result)
 
+    result = run_agent("Can you please wait for someone to raise their hands?")
+    print(result)
+    walkie_audio.speak(result)
+
     text = listen()
     print(f"Transcription: {text}")
     show_taking_action()
 
-    result = run_agent("Please record where you are,  go to the counter, grab me a bottle of tea, and give me the tea?")
+    result = run_agent("Please record where you are,  go to the counter, grab me a bottle of tea?")
     print(result)
     walkie_audio.speak(result)
 

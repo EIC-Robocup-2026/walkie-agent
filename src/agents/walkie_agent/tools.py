@@ -124,7 +124,7 @@ def think(thought: str) -> str:
 
 
 FOLLOW_STOP_DISTANCE = 0.7  # meters – how close the robot approaches the person
-APPROACH_DISTANCE = 0.7  # meters – how close before go_to_raised_hand finishes
+APPROACH_DISTANCE = 1.0  # meters – how close before go_to_raised_hand finishes
 RAISED_HAND_TIMEOUT = 60.0  # seconds – max time to scan before giving up
 
 
