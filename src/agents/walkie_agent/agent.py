@@ -6,7 +6,7 @@ from src.audio.walkie import WalkieAudio
 from src.agents.robot_state import RobotState
 
 from .prompts import WALKIE_AGENT_SYSTEM_PROMPT
-from .tools import create_sub_agents_tools, create_speak_tool, create_follow_person_tool, think
+from .tools import create_sub_agents_tools, create_speak_tool, create_follow_person_tool, create_go_to_raised_hand_tool, think
 from ..middleware import RobotStateMiddleware, SequentialToolCallMiddleware, TodoListMiddleware
 
 checkpointer = InMemorySaver()
@@ -31,6 +31,8 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_d
         tools.append(create_speak_tool(walkieAudio))
     if walkie_vision and walkieAudio:
         tools.append(create_follow_person_tool(robot, walkie_vision, walkieAudio))
+    if walkie_vision:
+        tools.append(create_go_to_raised_hand_tool(robot, walkie_vision))
     tools.append(think)
 
     # Check available tools

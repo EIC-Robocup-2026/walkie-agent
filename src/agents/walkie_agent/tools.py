@@ -124,6 +124,8 @@ def think(thought: str) -> str:
 
 
 FOLLOW_STOP_DISTANCE = 0.7  # meters – how close the robot approaches the person
+APPROACH_DISTANCE = 0.7  # meters – how close before go_to_raised_hand finishes
+RAISED_HAND_TIMEOUT = 60.0  # seconds – max time to scan before giving up
 
 
 def create_follow_person_tool(robot, walkie_vision, walkie_audio: WalkieAudio):
@@ -233,3 +235,140 @@ def create_follow_person_tool(robot, walkie_vision, walkie_audio: WalkieAudio):
         return "Stopped following the person as requested."
 
     return follow_person
+
+
+def _has_raised_hand(person, min_conf: float = 0.5) -> bool:
+    """Check whether a PersonPose has at least one wrist above its shoulder.
+
+    A hand is considered "raised" when the wrist keypoint is higher than the
+    corresponding shoulder keypoint in pixel coordinates (y increases
+    downward, so wrist.y < shoulder.y means the wrist is above).
+
+    Keypoint indices (COCO):
+        5 = left_shoulder,  9  = left_wrist
+        6 = right_shoulder, 10 = right_wrist
+    """
+    kpts = person.keypoints
+    if len(kpts) < 17:
+        return False
+    # Left side: wrist(9) above shoulder(5)
+    left = (
+        kpts[9].confidence >= min_conf
+        and kpts[5].confidence >= min_conf
+        and kpts[9].y < kpts[5].y
+    )
+    # Right side: wrist(10) above shoulder(6)
+    right = (
+        kpts[10].confidence >= min_conf
+        and kpts[6].confidence >= min_conf
+        and kpts[10].y < kpts[6].y
+    )
+    return left or right
+
+
+def create_go_to_raised_hand_tool(robot, walkie_vision):
+    """Create a tool that scans for a person raising their hand and navigates to them.
+
+    Args:
+        robot: WalkieRobot instance for navigation and position helpers.
+        walkie_vision: WalkieVision instance (must have pose_provider configured).
+
+    Returns:
+        A langchain tool.
+    """
+
+    @tool(parse_docstring=True)
+    def go_to_raised_hand() -> str:
+        """Scan for a person raising their hand and navigate to them.
+
+        The robot continuously captures frames and runs pose estimation.
+        When it detects someone with a raised hand (wrist above shoulder),
+        it navigates towards that person. The tool finishes when the robot
+        is within ~0.7 m of the person, or after 60 seconds if nobody
+        raises their hand.
+
+        When to use:
+        - The user asks you to go to a person raising their hand.
+        - "go to whoever is raising their hand", "approach the person waving"
+        - "someone is calling me", "go to the person who needs help"
+
+        When NOT to use:
+        - The user wants to follow someone continuously (use follow_person).
+        - The user just wants to move to a fixed location (use control_actuators).
+        - The user wants to look at or identify a person (use use_vision).
+
+        Returns:
+            str: Result message (arrived, timed out, or error).
+        """
+        start_time = time.time()
+        print("[go_to_raised_hand] Scanning for a person with a raised hand...")
+
+        try:
+            while True:
+                # Check timeout
+                elapsed = time.time() - start_time
+                if elapsed > RAISED_HAND_TIMEOUT:
+                    robot.nav.stop()
+                    print("[go_to_raised_hand] Timed out after {:.0f}s.".format(RAISED_HAND_TIMEOUT))
+                    return (
+                        f"Timed out after {RAISED_HAND_TIMEOUT:.0f} seconds. "
+                        "No person with a raised hand was detected."
+                    )
+
+                image = walkie_vision.capture()
+                if image is None:
+                    time.sleep(0.1)
+                    continue
+
+                # Run pose estimation
+                poses = walkie_vision.estimate_poses(image)
+
+                # Find persons with a raised hand
+                raised = [p for p in poses if _has_raised_hand(p)]
+
+                if not raised:
+                    # Nobody raising their hand – pause and wait
+                    robot.nav.stop()
+                    time.sleep(0.1)
+                    continue
+
+                # Pick the biggest person (by bbox area w*h) among those raising a hand
+                target = max(raised, key=lambda p: p.bbox[2] * p.bbox[3])
+
+                # Compute world position of the target person
+                target_pos = robot.tools.bboxes_to_positions([target.bbox])[0]
+                curr_pos = robot.status.get_pose()
+
+                tx, ty = target_pos[0], target_pos[1]
+                rx, ry = curr_pos["x"], curr_pos["y"]
+
+                dx = rx - tx
+                dy = ry - ty
+                dist = math.sqrt(dx ** 2 + dy ** 2)
+
+                # Check if we are close enough
+                if dist <= APPROACH_DISTANCE:
+                    robot.nav.stop()
+                    print(f"[go_to_raised_hand] Arrived! Distance: {dist:.2f} m")
+                    return (
+                        f"Arrived at the person who raised their hand. "
+                        f"Final distance: {dist:.2f} m."
+                    )
+
+                # Navigate towards the person, stopping APPROACH_DISTANCE away
+                ratio = APPROACH_DISTANCE / dist
+                goal_x = tx + (dx * ratio)
+                goal_y = ty + (dy * ratio)
+
+                # Face the person
+                angle_to_person = math.atan2(-dy, -dx)
+                robot.nav.go_to(goal_x, goal_y, angle_to_person, blocking=False)
+
+                time.sleep(0.1)
+
+        except Exception as e:
+            robot.nav.stop()
+            print(f"[go_to_raised_hand] Error: {e}")
+            return f"Go to raised hand ended due to error: {e}"
+
+    return go_to_raised_hand
