@@ -79,8 +79,8 @@ agent = create_walkie_agent(
 def show_listening():
     screen.show_text("Listening...", font_size=128, background_color=(93, 189, 9))
 
-def show_thinking():
-    screen.show_text("Thinking...", font_size=128, background_color=(232, 179, 21))
+def show_initializing():
+    screen.show_text("Initializing...", font_size=128, background_color=(232, 179, 21))
 
 def show_taking_action():
     screen.show_text("Taking Action...", font_size=128, background_color=(219, 62, 50))
@@ -112,7 +112,7 @@ def listen():
 #     pass
 
 def main():
-    show_thinking()
+    show_initializing()
 
     time.sleep(10)
     
