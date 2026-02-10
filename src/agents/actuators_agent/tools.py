@@ -19,7 +19,7 @@ def create_actuators_agent_tools(robot: WalkieRobot):
         return pose
 
     @tool(parse_docstring=True)
-    def move_absolute(x: float, y: float, heading: float = 0.0,) -> str:
+    def move_absolute(x: float, y: float, heading: float = 0.0) -> str:
         """Move the robot to a specific (x, y) position on the map, with optional heading. Use when the goal is given in map coordinates.
 
         Units: x, y in meters; heading in degrees (0 = forward/east, 90 = left/north).
