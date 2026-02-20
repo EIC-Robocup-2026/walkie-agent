@@ -72,7 +72,7 @@ class YOLOPoseEstimationProvider(PoseEstimationProvider):
             config.get("keypoint_confidence_threshold", 0.5)
         )
         self._model: Any | None = None
-        self._model_name = "yolo26m-pose"
+        self._model_name = "yolo26s-pose"
 
     # ------------------------------------------------------------------
     # Lifecycle

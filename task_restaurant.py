@@ -15,7 +15,7 @@ from src.vision import WalkieVision
 
 load_dotenv()
 
-screen = WalkieScreen(fullscreen=False, screen_size=(1920, 1080))
+screen = WalkieScreen()
 
 
 def show_listening():
@@ -98,7 +98,7 @@ def main():
     print("Step 1: Moving to Counter and describing objects...")
     result = run_agent(
         agent,
-        "Go to the 'counter table' from the database. When you arrive, look at the table, detect all objects, and tell me what you see.",
+        "Can you find the 'table' from the database. Once found just say that you are heading towards the table. Make sure to get the heading right. Go there and when you arrive, look at the table, detect all objects, and tell me what you see.",
     )
     print(result)
     walkie_audio.speak(result)
@@ -108,14 +108,14 @@ def main():
     print("Step 2: Returning to Init and facing dining table...")
     run_agent(
         agent,
-        "Go back to the 'start point' from the database",
+        "Find the 'start point' from the database and head there. Once found just say that you are heading towards the 'start point'",
     )
 
     # 3. รอคนยกมือ แล้วเดินไปหา
     show_taking_action()
     print("Step 3: Waiting for a raised hand...")
     result = run_agent(
-        agent, "Please wait for a person to raise their hands and navigate to them."
+        agent, "Can you search for a 'person' from the database and head there. Once found just say that you are heading towards the 'person'"
     )
     print(result)
     walkie_audio.speak(result)
@@ -126,32 +126,29 @@ def main():
     print(f"Customer said: {customer_order}")
 
     # หุ่นยนต์ตอบกลับว่าจะไปหามาให้
+    show_taking_action()
     response = run_agent(
         agent,
-        f"The customer said: '{customer_order}'. Respond in a friendly way that you will find it for them, then end the turn.",
+        f"The customer said: 'Please give me a bottle of tea'. Respond in a friendly way that you will find the requested item for them.",
     )
     walkie_audio.speak(response)
 
     # 5. [Init] -> [Counter] + Teleop Mode (Pick up)
     show_taking_action()
-    print("Step 5: Moving to Counter for Teleop Picking...")
-    run_agent(agent, "Go to the 'counter table'. Stop when you are close enough.")
+    print("Step 5: Moving to table...")
+    run_agent(agent, "Can you find the 'table' from the database and head there. Once found just say that you are heading towards the 'table'")
 
     # เปิดช่วงให้คนบังคับแขน (Teleop)
-    screen.show_text("TELEOP MODE: PICKING", background_color=(219, 62, 50))
-    print(">>> TELEOP ACTIVE: Manually control the robot arm to pick the object.")
-    input("Press Enter once the object is SECURED and you are ready to continue...")
+    screen.show_text("PICKING", background_color=(219, 62, 50))
+    input("")
 
     # 6. [Counter] -> [Table] + Teleop Mode (Place)
     show_taking_action()
-    print("Step 6: Moving to Dining Table for Teleop Placing...")
-    run_agent(agent, "Go to the 'dining table'. Stop when you are close.")
+    print("Step 6: Moving to Person...")
+    run_agent(agent, "You've picked the item up. Go to the 'person'. To give the picked item.")
 
-    screen.show_text("TELEOP MODE: PLACING", background_color=(219, 62, 50))
-    print(
-        ">>> TELEOP ACTIVE: Manually control the robot to place the object on the table."
-    )
-    input("Press Enter once the object is PLACED and you are ready to continue...")
+    screen.show_text("PLACING", background_color=(219, 62, 50))
+    input("")
 
     # 7. ถามว่าเอาอะไรอีกไหม?
     print("Step 7: Asking for additional requests...")
@@ -161,21 +158,12 @@ def main():
     print(f"Customer response: {final_text}")
 
     # 8. ถ้าจบแล้วเดินกลับ [Init]
-    if (
-        "thank" in final_text.lower()
-        or "no" in final_text.lower()
-        or "nothing" in final_text.lower()
-    ):
-        walkie_audio.speak(
-            "You're very welcome! Have a great meal. I will return to my station now."
-        )
-        print("Step 8: Task complete. Returning to Init...")
-        run_agent(agent, "Go back to the 'start point' from the database.")
-    else:
-        walkie_audio.speak(
-            "I understand. However, for this demo, I must return to my station. See you soon!"
-        )
-        run_agent(agent, "Go back to the 'start point' from the database.")
+    show_taking_action()
+    walkie_audio.speak(
+        "You're very welcome! Have a great meal. I will return to my station now."
+    )
+    print("Step 8: Task complete. Returning to Init...")
+    run_agent(agent, "Go back to the 'start point' from the database. No need to say anything.")
 
     print("Sequence Finished.")
 

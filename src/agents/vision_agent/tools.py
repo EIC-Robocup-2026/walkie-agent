@@ -156,7 +156,7 @@ def get_vision_tools(
             class_name = h.get("class_name", "unknown")
             xyz = h.get("object_xyz", [0, 0, 0])
             sid = h.get("scene_id", "")
-            heading = h.get("heading", 0.0)
+            heading = math.degrees(h.get("heading", 0.0))
             conf = h.get("similarity", 0)
             lines.append(f"  - class_name={class_name}, position (x={xyz[0]:.2f}, y={xyz[1]:.2f}), heading={heading:.2f}, confidence={conf:.2f}")
         print(f"Found {len(hits)} location(s) for '{object_name}': {lines}")

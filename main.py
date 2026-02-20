@@ -21,7 +21,7 @@ model = ChatOpenAI(
     api_key=os.getenv("OPENROUTER_API_KEY"),
     temperature=0,
     base_url="https://openrouter.ai/api/v1",
-    model="google/gemini-2.5-flash:nitro",
+    model="google/gemini-2.5-pro:nitro",
 )
 # model = ChatGoogleGenerativeAI(
 #     model="gemini-2.5-flash",
