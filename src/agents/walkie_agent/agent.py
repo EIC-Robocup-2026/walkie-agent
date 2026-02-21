@@ -4,14 +4,22 @@ from langchain.agents.middleware import SummarizationMiddleware
 
 from src.audio.walkie import WalkieAudio
 from src.agents.robot_state import RobotState
+from src.vision.background_monitor import BackgroundVisionMonitor
 
 from .prompts import WALKIE_AGENT_SYSTEM_PROMPT
 from .tools import create_sub_agents_tools, create_speak_tool, create_follow_person_tool, create_go_to_raised_hand_tool, think
-from ..middleware import RobotStateMiddleware, SequentialToolCallMiddleware, TodoListMiddleware
+from ..middleware import BackgroundVisionMiddleware, RobotStateMiddleware, SequentialToolCallMiddleware, TodoListMiddleware
 
 checkpointer = InMemorySaver()
 
-def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_db, tools=[]):
+def create_walkie_agent(
+    model,
+    walkieAudio: WalkieAudio,
+    walkie_vision,
+    walkie_db,
+    tools=[],
+    background_vision_monitor: BackgroundVisionMonitor | None = None,
+):
     """Create the main Walkie agent with sub-agent tools.
 
     Args:
@@ -20,6 +28,8 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_d
         walkie_vision: Optional WalkieVision for the vision agent tools
         walkie_db: Optional WalkieVectorDB for vision agent (find_object, find_scene, scan_and_remember)
         tools: Additional tools to add to the agent
+        background_vision_monitor: Optional BackgroundVisionMonitor that injects live
+            vision snapshots into the system prompt on every LLM call.
 
     Returns:
         The configured Walkie agent
@@ -38,19 +48,24 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_d
     # Check available tools
     robot_state = RobotState(robot, vision_enabled=True)
 
+    middleware = [
+        SummarizationMiddleware(
+            model=model,
+            trigger=("tokens", 4000),
+            keep=("messages", 20),
+        ),
+        SequentialToolCallMiddleware(),
+        RobotStateMiddleware(robot_state),
+        TodoListMiddleware(),
+    ]
+
+    if background_vision_monitor is not None:
+        middleware.append(BackgroundVisionMiddleware(background_vision_monitor))
+
     agent = create_agent(
         model=model,
         tools=tools,
-        middleware=[
-            SummarizationMiddleware(
-                model=model,
-                trigger=("tokens", 4000),
-                keep=("messages", 20),
-            ),
-            SequentialToolCallMiddleware(),
-            RobotStateMiddleware(robot_state),
-            TodoListMiddleware(),
-        ],
+        middleware=middleware,
         system_prompt=WALKIE_AGENT_SYSTEM_PROMPT,
         checkpointer=checkpointer,
     )

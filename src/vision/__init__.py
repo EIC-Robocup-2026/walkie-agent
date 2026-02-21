@@ -25,6 +25,7 @@ Usage:
     persons = pose.estimate(pil_image)
 """
 
+from .background_monitor import BackgroundVisionMonitor, VisionMode
 from .camera import Camera
 from .embedding import Embedding, EmbeddingProvider
 from .image_caption import ImageCaption, ImageCaptionProvider
@@ -64,4 +65,7 @@ __all__ = [
     "PoseKeypoint",
     # Unified
     "WalkieVision",
+    # Background monitoring
+    "BackgroundVisionMonitor",
+    "VisionMode",
 ]
