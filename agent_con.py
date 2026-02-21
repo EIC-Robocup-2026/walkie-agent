@@ -97,7 +97,7 @@ def listen():
     show_listening()
     print("Recording...")
     text = walkie_audio.listen()
-    if text == "" or text.lower().startswith("you are walkie agent"):
+    if text == "" or text.lower().startswith("you are walkie agent"): # Whisper sometimes picks up the system prompt; ignore it if it does.
         return ""
     return text
 
@@ -114,7 +114,8 @@ def main():
     
     while True:
         text = listen()
-        if text == "":
+        # Walke work == "walkie"
+        if text == "" or "walkie" not in text.lower():
             continue
         print(f"Transcription: {text}")
         show_taking_action()
