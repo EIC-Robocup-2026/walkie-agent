@@ -10,10 +10,12 @@ from typing import Any
 
 from ..base import TTSProvider
 from .elevenlabs import ElevenLabsProvider
+from .piper import PiperProvider
 
 # Provider registry - add new providers here
 PROVIDERS: dict[str, type[TTSProvider]] = {
     "elevenlabs": ElevenLabsProvider,
+    "piper": PiperProvider,
 }
 
 

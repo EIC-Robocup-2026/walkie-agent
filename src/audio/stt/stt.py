@@ -44,9 +44,9 @@ class STT:
         """Get the underlying provider instance."""
         return self._provider
 
-    def transcribe(self, audio_content: bytes) -> str:
+    def transcribe(self, audio_content: bytes, **kwargs) -> str:
         """Transcribe audio to text."""
-        return self._provider.transcribe(audio_content)
+        return self._provider.transcribe(audio_content, **kwargs)
 
     def get_supported_languages(self) -> list[str]:
         """Get list of supported languages for current provider."""

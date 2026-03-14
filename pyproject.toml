@@ -15,6 +15,7 @@ dependencies = [
     "pillow>=12.1.0",
     "pyaudio>=0.2.14",
     "pydub>=0.25.1",
+    "piper-tts>=1.2.0",
     "python-dotenv>=1.2.1",
     "requests>=2.28.0",
     "scipy>=1.17.0",
@@ -25,8 +26,5 @@ dependencies = [
     "torchvision>=0.15.0",
     "transformers>=4.30.0",
     "ultralytics>=8.0.0",
-    "walkie-sdk",
+    "walkie-sdk @ git+https://github.com/EIC-Robocup-2026/walkie-sdk.git",
 ]
-
-[tool.uv.sources]
-walkie-sdk = { git = "https://github.com/EIC-Robocup-2026/walkie-sdk.git" }

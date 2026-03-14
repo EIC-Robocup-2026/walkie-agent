@@ -21,6 +21,7 @@ from .stt import STT, STTProvider
 from .tts import TTS, TTSProvider
 from .microphone import Microphone, list_audio_devices, print_audio_devices
 from .speaker import Speaker, list_output_devices, print_output_devices
+from .wakeword import WakeWordDetector, get_provider as get_wakeword_provider, list_providers as list_wakeword_providers
 
 __all__ = [
     # Main interface
@@ -37,4 +38,8 @@ __all__ = [
     "Speaker",
     "list_output_devices",
     "print_output_devices",
+    # Wakeword
+    "WakeWordDetector",
+    "get_wakeword_provider",
+    "list_wakeword_providers",
 ]
