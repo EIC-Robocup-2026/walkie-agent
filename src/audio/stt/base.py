@@ -10,11 +10,12 @@ class STTProvider(ABC):
     """
 
     @abstractmethod
-    def transcribe(self, audio_content: bytes) -> str:
+    def transcribe(self, audio_content: bytes, **kwargs) -> str:
         """Transcribe audio to text.
         
         Args:
             audio_content: Audio data as bytes.
+            **kwargs: Provider-specific options.
             
         Returns:
             Transcribed text.

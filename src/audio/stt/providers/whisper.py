@@ -101,12 +101,18 @@ class WhisperSTTProvider(STTProvider):
             logger.error(f"Failed to load Whisper model: {e}")
             raise
 
-    def transcribe(self, audio_content: bytes, prompt: str = "You are Walkie agent.") -> str:
+    def transcribe(
+        self,
+        audio_content: bytes,
+        prompt: str = "You are Walkie agent.",
+        **kwargs,
+    ) -> str:
         """Transcribe audio to text.
         
         Args:
             audio_content: Raw PCM audio (16-bit signed, 16kHz, mono).
             prompt: Prompt to use for transcription.
+            **kwargs: Provider-specific options (unused).
         Returns:
             Transcribed text.
         """

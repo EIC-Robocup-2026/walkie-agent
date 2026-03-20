@@ -50,11 +50,12 @@ class GoogleSTTProvider(STTProvider):
             f"projects/{self.project_id}/locations/{self.location}/recognizers/{recognizer}"
         )
 
-    def transcribe(self, audio_content: bytes) -> str:
+    def transcribe(self, audio_content: bytes, **kwargs) -> str:
         """Transcribe audio to text.
         
         Args:
             audio_content: Raw PCM audio (16-bit signed, 16kHz, mono).
+            **kwargs: Provider-specific options (unused).
         """
         # Explicit config for raw PCM audio from microphone
         config = cloud_speech.RecognitionConfig(

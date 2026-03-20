@@ -30,6 +30,7 @@ from .microphone import Microphone, list_audio_devices, print_audio_devices
 from .tts import TTS
 from .speaker import list_output_devices, print_output_devices, Speaker
 from .tts.providers import list_providers as list_tts_providers
+from .wakeword import get_provider as get_wakeword_provider, list_providers as list_wakeword_providers
 
 
 class WalkieAudio:
@@ -48,6 +49,8 @@ class WalkieAudio:
         speaker_device: int | None = None,
         microphone_threshold: float = 0.5,
         microphone_min_silence_ms: int = 1000,
+        wakeword_provider: str | None = None,
+        wakeword_config: dict | None = None,
     ) -> None:
         """Initialize WalkieAudio with STT and TTS providers.
         
@@ -60,11 +63,15 @@ class WalkieAudio:
             speaker_device: Audio output device index.
             microphone_threshold: VAD sensitivity (0.0-1.0). Higher = less sensitive.
             microphone_min_silence_ms: Silence duration (ms) to end recording.
+            wakeword_provider: Wake word detector name (optional).
+            wakeword_config: Wake word detector configuration.
         """
         self._stt_provider_name = stt_provider
         self._tts_provider_name = tts_provider
         self._stt_config = stt_config or {}
         self._tts_config = tts_config or {}
+        self._wakeword_provider_name = wakeword_provider
+        self._wakeword_config = wakeword_config or {}
         
         # Initialize STT
         self._stt = STT(provider=stt_provider, **self._stt_config)
@@ -81,6 +88,11 @@ class WalkieAudio:
         
         # Initialize Speaker
         self._speaker = Speaker(device=speaker_device)
+
+        # Initialize Wake Word detector (optional)
+        self._wakeword = None
+        if wakeword_provider:
+            self._wakeword = get_wakeword_provider(wakeword_provider, self._wakeword_config)
 
     @property
     def stt(self) -> STT:
@@ -101,6 +113,11 @@ class WalkieAudio:
     def speaker(self) -> Speaker:
         """Get the Speaker instance."""
         return self._speaker
+
+    @property
+    def wakeword(self):
+        """Get the wake word detector instance (if configured)."""
+        return self._wakeword
 
     def listen(
         self,
@@ -140,6 +157,34 @@ class WalkieAudio:
         """
         audio = self._microphone.record_seconds(duration)
         return self._stt.transcribe(audio)
+
+    def listen_with_wakeword(
+        self,
+        wake_timeout: float = 30.0,
+        wake_chunk_duration: float = 1.5,
+        **listen_kwargs,
+    ) -> str:
+        """Wait for wake word, then listen and transcribe.
+
+        Args:
+            wake_timeout: Max seconds to wait for wake word.
+            wake_chunk_duration: Seconds per wake word listening chunk.
+            **listen_kwargs: Arguments passed to listen().
+
+        Returns:
+            Transcribed text or empty string if wake word not detected.
+        """
+        if not self._wakeword:
+            raise RuntimeError("Wake word detector is not configured")
+
+        detected = self._wakeword.listen_until_wake(
+            self._microphone,
+            timeout=wake_timeout,
+            chunk_duration=wake_chunk_duration,
+        )
+        if not detected:
+            return ""
+        return self.listen(**listen_kwargs)
 
     def speak(
         self,
@@ -213,6 +258,11 @@ class WalkieAudio:
     def available_tts_providers() -> list[str]:
         """List all available TTS providers."""
         return list_tts_providers()
+
+    @staticmethod
+    def available_wakeword_providers() -> list[str]:
+        """List all available wake word providers."""
+        return list_wakeword_providers()
 
     @staticmethod
     def list_microphones() -> list[dict]:
