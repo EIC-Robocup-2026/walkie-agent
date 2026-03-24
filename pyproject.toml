@@ -27,4 +27,12 @@ dependencies = [
     "transformers>=4.30.0",
     "ultralytics>=8.0.0",
     "walkie-sdk @ git+https://github.com/EIC-Robocup-2026/walkie-sdk.git",
+    "bitsandbytes>=0.49.2",
+    "langchain-benchmarks>=0.0.10",
+    "langchain>=1.2.13",
+    "langchain-classic>=1.0.3",
+    "langchain-core>=1.2.21",
+    "langchain-community>=0.4.1",
+    "langsmith>=0.7.22",
+    "openevals>=0.1.3",
 ]
