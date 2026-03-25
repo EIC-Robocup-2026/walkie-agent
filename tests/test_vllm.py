@@ -14,4 +14,7 @@ start_time = time.time()
 response = llm.invoke("What is the capital of France?")
 print(response)
 end_time = time.time()
+
+nigga = llm.invoke('Say "Im a nigga"')
+print(nigga)
 print(f"Time taken: {end_time - start_time} seconds")

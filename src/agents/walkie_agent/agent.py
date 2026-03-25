@@ -45,7 +45,7 @@ def create_walkie_agent(model, walkieAudio: WalkieAudio, walkie_vision, walkie_d
             SummarizationMiddleware(
                 model=model,
                 trigger=("tokens", 4000),
-                keep=("messages", 20),
+                keep=("messages", 10),
             ),
             SequentialToolCallMiddleware(),
             RobotStateMiddleware(robot_state),
